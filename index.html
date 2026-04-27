@@ -6,53 +6,63 @@
     <title>Extractor de Datos PDF - Gobernación</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
-<body class="bg-slate-100 min-h-screen p-4 md:p-10">
+<body class="bg-slate-100 min-h-screen p-4 md:p-10 text-slate-800">
     <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div class="bg-blue-900 p-6 text-white text-center">
-            <h1 class="text-3xl font-bold">Procesador Masivo de PDFs</h1>
-            <p class="text-blue-200 mt-2">Extrae datos y guarda en Google Sheets (Máx. 50 archivos)</p>
+        <div class="bg-blue-900 p-8 text-white text-center">
+            <h1 class="text-3xl font-bold uppercase tracking-wide">Procesador Masivo de PDFs</h1>
+            <p class="text-blue-200 mt-2">Extrae datos de Resoluciones y Traslados automáticamente</p>
         </div>
 
         <div class="p-8">
-            <div id="drop-zone" class="border-4 border-dashed border-blue-200 rounded-xl p-12 text-center hover:bg-blue-50 transition-all cursor-pointer">
+            <div id="drop-zone" class="border-4 border-dashed border-blue-200 rounded-xl p-12 text-center hover:bg-blue-50 transition-all cursor-pointer group">
                 <div class="flex flex-col items-center">
-                    <svg class="w-16 h-16 text-blue-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    <p class="text-xl text-gray-600 font-semibold">Arrastra aquí tus archivos PDF</p>
-                    <p class="text-gray-400 text-sm mt-2">Puedes seleccionar hasta 50 archivos a la vez</p>
+                    <svg class="w-20 h-20 text-blue-400 mb-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <p class="text-xl font-semibold">Arrastra aquí tus archivos PDF</p>
+                    <p class="text-gray-400 text-sm mt-2">Soporta hasta 50 archivos simultáneos</p>
                 </div>
                 <input type="file" id="file-input" class="hidden" multiple accept="application/pdf">
             </div>
 
             <div id="results-container" class="mt-10 hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">Datos Extraídos</h2>
-                    <span id="counter" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold">0 archivos</span>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-700">Previsualización de Datos</h2>
+                    <span id="counter" class="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-bold shadow-md">0 archivos</span>
                 </div>
-                <div class="overflow-x-auto border rounded-lg">
+                
+                <div class="overflow-x-auto rounded-xl border border-gray-200">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                        <thead class="bg-slate-50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SADE</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resolución</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Beneficiario</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">SADE</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Resolución / Documento</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Beneficiario / Contribuyente</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Hoja Destino</th>
                             </tr>
                         </thead>
-                        <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+                        <tbody id="table-body" class="bg-white divide-y divide-gray-100">
                             </tbody>
                     </table>
                 </div>
-                <button id="send-btn" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
-                    <span>Enviar todo a Google Sheets</span>
-                </button>
+
+                <div class="mt-8 flex gap-4">
+                    <button id="send-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>GUARDAR TODO EN GOOGLE SHEETS</span>
+                    </button>
+                    <button onclick="location.reload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-4 rounded-xl font-bold">Limpiar</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "AQUÍ_PEGA_TU_URL_DE_APPS_SCRIPT"; 
+        // --- CONFIGURACIÓN CON TU URL ---
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzwf_yPlrR-bdjUVw_qhgY1e-Nbma46mxWuW-gSsuUa6bdbtcTqrFS8T8MjvUd4zAI0_w/exec"; 
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
@@ -62,13 +72,9 @@
         const resultsContainer = document.getElementById('results-container');
         let extractedData = [];
 
-        // Abrir selector de archivos al hacer clic
         dropZone.onclick = () => fileInput.click();
-
-        // Manejar archivos seleccionados
         fileInput.onchange = (e) => handleFiles(e.target.files);
 
-        // Manejar arrastre
         dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-50'); };
         dropZone.ondragleave = () => dropZone.classList.remove('bg-blue-50');
         dropZone.ondrop = (e) => {
@@ -79,26 +85,34 @@
 
         async function handleFiles(files) {
             resultsContainer.classList.remove('hidden');
-            tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Procesando...</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="4" class="p-10 text-center"><div class="flex flex-col items-center justify-center"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div><p>Extrayendo datos de los archivos...</p></div></td></tr>';
             extractedData = [];
 
             for (let file of files) {
                 if (file.type !== 'application/pdf') continue;
                 
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-                const page = await pdf.getPage(1);
-                const textContent = await page.getTextContent();
-                const text = textContent.items.map(s => s.str).join(' ');
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                    const page = await pdf.getPage(1);
+                    const textContent = await page.getTextContent();
+                    const text = textContent.items.map(s => s.str).join(' ');
 
-                // Lógica de extracción (Regex)
-                const sade = text.match(/SADE:?\s*(\d+)/i)?.[1] || "No hallado";
-                const res = text.match(/RESOLUCION N°? ([\d.-]+)/i)?.[1] || "No hallada";
-                const beneficiario = text.match(/señor\(a\)\s+([A-Z\s]+?)\s+con/i)?.[1] || "No hallado";
-                const tipo = text.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION";
+                    // Lógica de extracción avanzada
+                    const sade = text.match(/SADE:?\s*(\d+)/i)?.[1] || "N/A";
+                    const res = text.match(/RESOLUCION N°?\s*([\d.-]+)/i)?.[1] || text.match(/RESOLUCIÓN N°?\s*([\d.-]+)/i)?.[1] || "N/A";
+                    const contribuyente = text.match(/señor\(a\)\s+([A-Z\sÑ]+?)\s+(?:con|C\.C|NIT)/i)?.[1] || text.match(/Que\s+([A-Z\sÑ]+?)\s*,\s*con/i)?.[1] || "No detectado";
+                    const tipo = text.toUpperCase().includes("TRASLADO") ? "TRASLADO" : "RESOLUCION";
 
-                const obj = { sade, resolucion: res, beneficiario, tipoDocumento: tipo };
-                extractedData.push(obj);
+                    extractedData.push({
+                        sade: sade,
+                        resolucion: res,
+                        beneficiario: contribuyente.trim(),
+                        tipoDocumento: tipo
+                    });
+                } catch (err) {
+                    console.error("Error leyendo PDF:", err);
+                }
             }
             renderTable();
         }
@@ -108,30 +122,37 @@
             document.getElementById('counter').innerText = `${extractedData.length} archivos`;
             extractedData.forEach(item => {
                 tableBody.innerHTML += `
-                    <tr>
-                        <td class="px-4 py-2 border-b text-sm">${item.sade}</td>
-                        <td class="px-4 py-2 border-b text-sm">${item.resolucion}</td>
-                        <td class="px-4 py-2 border-b text-sm">${item.beneficiario}</td>
-                        <td class="px-4 py-2 border-b text-sm font-bold text-blue-600">${item.tipoDocumento}</td>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 text-sm font-medium text-slate-900">${item.sade}</td>
+                        <td class="px-6 py-4 text-sm text-slate-600">${item.resolucion}</td>
+                        <td class="px-6 py-4 text-sm text-slate-600">${item.beneficiario}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${item.tipoDocumento === 'TRASLADO' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">
+                                ${item.tipoDocumento}
+                            </span>
+                        </td>
                     </tr>`;
             });
         }
 
         document.getElementById('send-btn').onclick = async function() {
-            this.innerText = "Enviando... por favor espera";
+            this.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white h-5 w-5 mr-3"></div> ENVIANDO DATOS...`;
             this.disabled = true;
 
             try {
-                const response = await fetch(WEB_APP_URL, {
+                // Enviamos los datos al Apps Script
+                await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Importante para Apps Script
+                    mode: 'no-cors',
                     body: JSON.stringify({ registros: extractedData })
                 });
-                alert("¡Datos enviados con éxito a Google Sheets!");
+                
+                alert("¡PROCESO EXITOSO!\n\nLos datos se han guardado en tu Google Sheets.");
                 location.reload();
             } catch (err) {
-                alert("Error al enviar: " + err.message);
+                alert("Error de conexión. Verifica tu internet.");
                 this.disabled = false;
+                this.innerText = "REINTENTAR ENVÍO";
             }
         };
     </script>
