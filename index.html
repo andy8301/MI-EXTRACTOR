@@ -4,35 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Extractor de Datos - Gobernación</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f4f9; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; text-align: center; }
-        #drop-area { border: 2px dashed #3498db; padding: 40px; text-align: center; cursor: pointer; background: #ebf5fb; border-radius: 8px; }
-        #drop-area.highlight { border-color: #2ecc71; background: #e8f8f5; }
-        .btn { display: block; width: 100%; padding: 15px; margin-top: 20px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .btn:hover { background: #219150; }
-        #status { margin-top: 20px; font-weight: bold; text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #3498db; color: white; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background-color: #f0f2f5; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; text-align: center; margin-bottom: 25px; }
+        #drop-area { 
+            border: 3px dashed #1a73e8; 
+            padding: 50px; 
+            text-align: center; 
+            cursor: pointer; 
+            background: #f8fbff; 
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        #drop-area:hover, #drop-area.highlight { background: #e8f0fe; border-color: #0d47a1; }
+        .btn { 
+            display: block; width: 100%; padding: 15px; margin-top: 20px; 
+            background: #34a853; color: white; border: none; border-radius: 8px; 
+            cursor: pointer; font-size: 16px; font-weight: bold; 
+        }
+        .btn:hover { background: #2d8e47; }
+        #status { margin-top: 20px; font-weight: bold; text-align: center; color: #5f6368; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+        th, td { border: 1px solid #dadce0; padding: 10px; text-align: left; }
+        th { background-color: #1a73e8; color: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>🚀 Extractor de Resoluciones</h1>
-    <div id="drop-area">Arrestre sus archivos PDF aquí o haga clic</div>
-    <input type="file" id="fileElem" multiple accept="application/pdf" style="display:none">
+    
+    <div id="drop-area">
+        <p style="font-size: 18px; color: #1a73e8;">Arrastre sus archivos PDF aquí o haga clic para buscar</p>
+        <input type="file" id="fileElem" multiple accept="application/pdf" style="display:none">
+    </div>
     
     <div id="status"></div>
+    
     <table id="preview-table" style="display:none">
         <thead>
             <tr>
                 <th>SADE INGRESO</th>
                 <th>No. ACTO ADM Y SADE</th>
-                <th>EXPEDIENTE</th>
                 <th>SOLICITANTE</th>
                 <th>IDENTIFICACIÓN</th>
             </tr>
@@ -44,11 +59,12 @@
 </div>
 
 <script>
-    // ==========================================
-    // 1. CONFIGURACIÓN - PEGA TU URL AQUÍ ABAJO
-    // ==========================================
+    // 1. CONFIGURACIÓN - TU URL DE GOOGLE
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec
 ";
+
+    // Configuración obligatoria de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
 
     let extractedData = [];
     const dropArea = document.getElementById('drop-area');
@@ -58,128 +74,119 @@
     const previewTable = document.getElementById('preview-table');
     const uploadBtn = document.getElementById('upload-btn');
 
-    // Manejo de carga de archivos
-    dropArea.onclick = () => fileElem.click();
-    fileElem.onchange = (e) => handleFiles(e.target.files);
+    // CONEXIÓN DE EVENTOS REPARADA
+    dropArea.addEventListener('click', () => fileElem.click());
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        handleFiles(dt.files);
+    });
+
+    fileElem.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
 
     async function handleFiles(files) {
+        if (files.length === 0) return;
+        
         extractedData = [];
         tableBody.innerHTML = "";
-        status.innerText = "Procesando archivos...";
+        status.innerText = "🛠️ Procesando documentos...";
         
         for (let file of files) {
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(file);
-            await new Promise(resolve => {
-                reader.onload = async function() {
-                    const typedarray = new Uint8Array(this.result);
-                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                    let fullText = "";
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                let fullText = "";
 
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-                        const content = await page.getTextContent();
-                        fullText += content.items.map(s => s.str).join(' ') + " ";
-                    }
-                    
-                    const data = extraerInformacion(fullText);
-                    extractedData.push(data);
-                    
-                    // Mostrar vista previa en la tabla
-                    const row = `<tr>
-                        <td>${data.sadeIngreso}</td>
-                        <td>${data.actoYSade}</td>
-                        <td>${data.expediente}</td>
-                        <td>${data.solicitante}</td>
-                        <td>${data.identificacion}</td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
-                    resolve();
-                };
-            });
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(s => s.str).join(' ') + " ";
+                }
+                
+                const data = analizarDocumento(fullText);
+                extractedData.push(data);
+                
+                // Agregar a la tabla de vista previa
+                const row = `<tr>
+                    <td>${data.sadeIngreso}</td>
+                    <td>${data.actoYSade}</td>
+                    <td>${data.solicitante}</td>
+                    <td>${data.identificacion}</td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            } catch (err) {
+                console.error("Error con archivo:", file.name, err);
+            }
         }
         
-        status.innerText = `Archivos cargados: ${files.length}`;
+        status.innerText = `✅ ${files.length} archivos listos para enviar`;
         previewTable.style.display = "table";
         uploadBtn.style.display = "block";
     }
 
-    function extraerInformacion(text) {
+    function analizarDocumento(text) {
         const textUpper = text.toUpperCase();
 
-        // 1. SADE (Radicación principal)
-        const sadeMatch = text.match(/RADICACIÓN:\s*(\d+)/i);
-        const numSade = sadeMatch ? sadeMatch[1] : "N/A";
-
-        // 2. No. Acto Administrativo (Últimos 4 dígitos)
+        // Extracción de datos con tus reglas
+        const sadePrincipal = text.match(/RADICACIÓN:\s*(\d+)/i)?.[1] || "N/A";
         const resMatch = text.match(/(?:RESOLUCION|RESOLUCIÓN|TRASLADO)\s*NO\.?\s*([\d.]+)-(\d{4})/i);
-        const ultimosCuatro = resMatch ? resMatch[2] : "0000";
+        const numRes = resMatch ? resMatch[2] : "0000";
 
-        // COMBINACIÓN COLUMNA B: No. ACTO ADMINISTRATIVO Y No. SADE
-        const actoYSade = `RESOLUCION ${ultimosCuatro} - SADE ${numSade}`;
+        // COLUMNA B COMBINADA
+        const actoYSade = `RESOLUCION ${numRes} - SADE ${sadePrincipal}`;
 
-        // 3. Expediente
-        const expMatch = text.match(/(?:EXPEDIENTE|EXP):?\s*([\w\d.-]+)/i);
-        const numExpediente = expMatch ? expMatch[1].trim() : "N/A";
-
-        // 4. Identificación
-        const idMatch = text.match(/(?:IDENTIFICACION|IDENTIFICACIÓN|C\.C|NIT)[:.\s]*([\d.]{5,15})/i);
-        const identificacion = idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D";
-
-        // 5. Solicitante
         const solMatch = text.match(/(?:SOLICITANTE|NOMBRE|SEÑOR\(A\)):?\s*([A-Z\sÑÁÉÍÓÚ]+?)(?=\s+C\.C|NIT|IDENTIFICADO|DIRECCIÓN)/i);
-        const solicitante = solMatch ? solMatch[1].trim().toUpperCase() : "NO DETECTADO";
-
-        // 6. Correo y Dirección
+        const idMatch = text.match(/(?:IDENTIFICACION|IDENTIFICACIÓN|C\.C|NIT)[:.\s]*([\d.]{5,15})/i);
+        const expMatch = text.match(/(?:EXPEDIENTE|EXP):?\s*([\w\d.-]+)/i);
         const correoMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        const correo = correoMatch ? correoMatch[0] : "N/D";
-        const dirMatch = text.match(/(?:DIRECCIÓN|DIRECCION):?\s*([^@\n]+?)(?=\s+CORREO|CIUDAD|$)/i);
-        const direccion = dirMatch ? dirMatch[1].trim() : "N/D";
+        const proyMatch = text.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO):?\s*([A-Z\sÑÁÉÍÓÚ.]{5,50})/i);
 
-        // 7. Fecha del Acto (Traducción de meses)
+        // Traducción de fecha
         const meses = {"enero":"01","febrero":"02","marzo":"03","abril":"04","mayo":"05","junio":"06","julio":"07","agosto":"08","septiembre":"09","octubre":"10","noviembre":"11","diciembre":"12"};
         const fMatch = text.match(/(\d{1,2})\s+de\s+([a-z]+)\s+de(?:l)?\s+(\d{4})/i);
-        const fechaDoc = fMatch ? `${fMatch[1].padStart(2,'0')}/${meses[fMatch[2].toLowerCase()] || '01'}/${fMatch[3]}` : "N/D";
-
-        // 8. Funcionario (Proyectó)
-        const proyMatch = text.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO):?\s*([A-Z\sÑÁÉÍÓÚ.]{5,50})/i);
-        const funcionario = proyMatch ? proyMatch[1].trim().toUpperCase() : "NO DETECTADO";
+        const fechaDoc = fMatch ? `${fMatch[1].padStart(2,'0')}/${meses[fMatch[2].toLowerCase()] || '01'}/${fMatch[3]}` : "N/A";
 
         return {
-            sadeIngreso: numSade.substring(0, 10),
+            sadeIngreso: sadePrincipal.substring(0, 10),
             actoYSade: actoYSade,
-            expediente: numExpediente,
+            expediente: expMatch ? expMatch[1].trim() : "N/A",
             actoAdministrativo: textUpper.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION",
             areaAdministrativa: "NOTIFICACIONES",
-            solicitante: solicitante,
-            dir_correo: `${direccion} / ${correo}`,
+            solicitante: solMatch ? solMatch[1].trim().toUpperCase() : "NO DETECTADO",
+            dir_correo: "VER EN EXCEL", 
             ciudad: "CALI",
             fechaActo: fechaDoc,
-            identificacion: identificacion,
-            funcionario: funcionario,
-            observaciones: correo,
+            identificacion: idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D",
+            funcionario: proyMatch ? proyMatch[1].trim().toUpperCase() : "NO DETECTADO",
+            observaciones: correoMatch ? correoMatch[0] : "N/D",
             tipoDocumento: textUpper.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION"
         };
     }
 
-    // Enviar a Google
     uploadBtn.onclick = async () => {
-        status.innerText = "Enviando datos a Google Sheets...";
+        status.innerText = "🚀 Enviando a Google Sheets... espere";
         try {
-            const response = await fetch(WEB_APP_URL, {
+            await fetch(WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ registros: extractedData })
             });
-            status.innerText = "✅ ¡PROCESO EXITOSO! Revisa tu Excel.";
+            status.innerHTML = "<span style='color: #27ae60;'>✅ ¡ÉXITO! Datos guardados correctamente.</span>";
             uploadBtn.style.display = "none";
         } catch (error) {
-            status.innerText = "❌ Error al enviar los datos.";
-            console.error(error);
+            status.innerHTML = "<span style='color: #c0392b;'>❌ Error de conexión.</span>";
         }
     };
 </script>
-
 </body>
 </html>
