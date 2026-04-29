@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Extractor Gobernación — Precisión Total</title>
+    <title>Sistema Gobernación — Extractor de Datos Reales</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .success-data { color: #1e8e3e; font-weight: bold; }
+        .dato-real { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: FILTRADO DE DATOS REALES</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: EXTRACCIÓN DE DATOS REALES</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Datos reales sin títulos)</p>
+        <p>A (Sade) Vacío | J (ID) Puntos | K (Nombre) Limpio | L (Dirección y Correo) CAPTURA FORZADA</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO... EXTRRAYENDO DIRECCIÓN Y CORREO... ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO DATOS... BUSCANDO CALLES Y CORREOS... ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -50,7 +50,7 @@
         </table>
     </div>
 
-    <button class="btn" id="btn-enviar">🚀 ENVIAR LAS 16 COLUMNAS AL EXCEL</button>
+    <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
 </div>
 
 <script>
@@ -68,7 +68,7 @@ async function procesarOCR(file) {
     const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
     const page = await pdf.getPage(1);
     
-    const viewport = page.getViewport({scale: 2.5});
+    const viewport = page.getViewport({scale: 3.0}); // Aumentamos escala para máxima nitidez
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.height = viewport.height;
@@ -90,7 +90,7 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalización de texto profunda
+    // Normalizamos el texto quitando saltos de línea y basura
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
@@ -105,31 +105,24 @@ function extraerTodoOCR(t) {
     // --- K: NOMBRE LIMPIO ---
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
-    // Si encuentra la palabra IDENTIFICACION, corta el nombre ahí mismo
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // --- L: DIRECCIÓN Y CORREO (LÓGICA DE DATO PURO) ---
-    // Buscamos el correo primero (es el dato más fácil de aislar)
-    const matchCorreoGral = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const emailReal = matchCorreoGral ? matchCorreoGral[0].toLowerCase() : "n/a";
+    // --- L: DIRECCIÓN Y CORREO (LÓGICA MEJORADA) ---
+    // 1. Buscamos el correo (lo más fácil de encontrar)
+    const matchEmail = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = matchEmail ? matchEmail[0].toLowerCase() : "n/a";
 
-    // Para la dirección, buscamos lo que hay entre "DTPO" y "CORREO"
-    let direccionReal = "N/A";
-    const startTag = "DTPO";
-    const endTag = "CORREO";
-    
-    const idxStart = texto.toUpperCase().indexOf(startTag);
-    const idxEnd = texto.toUpperCase().indexOf(endTag);
-
-    if (idxStart !== -1 && idxEnd !== -1 && idxEnd > idxStart) {
-        // Sacamos el texto en medio de los dos
-        let block = texto.substring(idxStart + startTag.length, idxEnd).trim();
-        // Limpiamos los dos puntos o guiones que suelen quedar al inicio
-        direccionReal = block.replace(/^[:\s–-]+/, '').trim();
+    // 2. Buscamos la dirección: Todo lo que esté después de "DTPO" o "MPIO" hasta llegar a "CORREO"
+    let direccion = "N/A";
+    const fragmentoL = texto.match(/(?:DTPO|MPIO|DTP0|MP10)[:\s–-]+(.*?)(?=CORREO|ELECTR[OÓ]NICO|TEL|$)/i);
+    if (fragmentoL) {
+        direccion = fragmentoL[1].trim();
+        // Quitamos basura que queda al inicio como ":", "-", "–"
+        direccion = direccion.replace(/^[:\s–-]+/, '').trim();
     }
 
-    const colL = `${direccionReal} / ${emailReal}`;
+    const colL = `${direccion} / ${email}`;
 
     // OTROS
     const sades = texto.match(/\b\d{10}\b/g) || [];
@@ -167,14 +160,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="success-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="dato-real">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO! Dirección y Correo limpios.");
+        alert("🎉 ¡ENVIADO! Dirección y Correo capturados.");
     } catch (e) { alert("❌ Error"); }
 };
 </script>
