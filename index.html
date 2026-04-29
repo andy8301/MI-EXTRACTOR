@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Extractor de Direcciones Completo</title>
+    <title>Extractor Gobernación — Versión Ultra-Escáner</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,29 +17,29 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .full-data { color: #d93025; font-weight: 800; background: #fff4f2; border: 1px solid #ffccc7; }
+        .address-focus { color: #d93025; font-weight: 800; background: #fff4f2; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: CAPTURA DE BLOQUES CON ESPACIOS</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: BARRIDO TOTAL</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>📂 CLIC AQUÍ PARA SUBIR EL PDF</strong>
-        <p>Ajustado: Captura direcciones largas con espacios, símbolos y guiones.</p>
+        <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
+        <p>Captura forzada: CALLE + NÚMERO + BARRIO + VALLE / CORREO</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO... ANALIZANDO ESPACIOS Y SÍMBOLOS... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO TODA LA CASILLA (ESCALA 4.0)... ESPERE POR FAVOR...</div>
 
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
                     <th>SADE DE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:000">No. PLANILLA</th>
-                    <th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th><th>ÁREA ADMINISTRATIVA...</th>
-                    <th>No. ACTO ADMINISTRATIVO Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
+                    <th>No. EXPEDIENTE</th><th>ACTO ADM.</th><th>ÁREA ADM.</th>
+                    <th>ACTO Y SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
                     <th style="background:#e8f0fe; color:#1a73e8;">IDENTIFICACION</th>
                     <th>CONTRIBUYENTE</th>
                     <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO</th>
@@ -72,7 +72,7 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        // Escala 4.0 para máxima nitidez en direcciones pequeñas
+        // Escala 4.0: Máxima resolución para no perder ni un número de la calle
         const viewport = page.getViewport({scale: 4.0}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -94,23 +94,23 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalización: eliminamos saltos de línea para que todo sea un solo bloque continuo
+    // Normalización: quitamos saltos de línea y limpiamos espacios triples
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN (Puntos)
+    // J: IDENTIFICACIÓN (Cédula con puntos)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: NOMBRE (Limpio)
+    // K: NOMBRE LIMPIO
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (LÓGICA DE CAPTURA TOTAL POR ÁREA)
+    // L: DIRECCIÓN Y CORREO (LÓGICA DE BARRIDO TOTAL)
     
-    // Primero, atrapamos el correo arreglando el @
+    // Primero atrapamos el correo y arreglamos el símbolo
     let email = "n/a";
     let emailMatch = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || 
                      texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
@@ -118,27 +118,33 @@ function extraerTodoOCR(t) {
         email = emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
     }
 
-    // Para la DIRECCIÓN: Buscamos todo desde "DIRECCION" hasta "CORREO"
+    // Para la DIRECCIÓN: Buscamos el inicio "DIRECC" y el final "CORREO"
     let direccion = "N/A";
-    const posStart = texto.toUpperCase().indexOf("DIRECCI");
-    const posEnd = texto.toUpperCase().indexOf("CORREO");
+    let posIni = texto.toUpperCase().indexOf("DIRECCI");
+    let posFin = texto.toUpperCase().indexOf("CORREO");
 
-    if (posStart !== -1 && posEnd !== -1 && posEnd > posStart) {
-        // Capturamos el bloque incluyendo espacios, #, números y guiones
-        let bloque = texto.substring(posStart, posEnd);
+    if (posIni !== -1 && posFin !== -1 && posFin > posIni) {
+        // Tomamos TODO el bloque de texto en medio
+        let bloque = texto.substring(posIni, posFin);
         
-        // Limpiamos las etiquetas internas pero NO tocamos los datos de la calle
+        // LIMPIEZA QUIRÚRGICA: Quitamos las etiquetas del formulario pero dejamos los datos
         direccion = bloque
             .replace(/DIRECCI[OÓ]N/gi, "")
             .replace(/MPIO/gi, "")
             .replace(/DTPO/gi, "")
             .replace(/DTP0/gi, "")
             .replace(/MP10/gi, "")
-            .replace(/[–—:;]/g, " ") // Quitamos guiones decorativos y puntos del formulario
-            .replace(/\s+/g, " ") // Unificamos los espacios para que no se vea desordenado
+            .replace(/MUNICIPIO/gi, "")
+            .replace(/DEPARTAMENTO/gi, "")
+            .replace(/[–—\-:;]/g, " ") // Quitamos guiones decorativos
+            .replace(/\s+/g, " ") // Limpiamos espacios múltiples
             .trim();
+        
+        // Si el bloque quedó muy corto (menos de 5 letras), probablemente falló y usamos fallback
+        if (direccion.length < 5) direccion = "REINTENTAR LECTURA";
     }
 
+    // Otros datos...
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
@@ -165,14 +171,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="full-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="address-focus">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡BLOQUE DE DIRECCIÓN CAPTURADO Y ENVIADO!");
+        alert("🎉 ¡BARRIDO COMPLETADO Y ENVIADO!");
     } catch (e) { alert("Error"); }
 };
 </script>
