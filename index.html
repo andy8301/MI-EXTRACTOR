@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Extractor Precisión Total</title>
+    <title>Sistema Gobernación — Versión Reparación de Símbolos</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .dato-importante { color: #d93025; font-weight: bold; }
+        .fix-text { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: CAPTURA TOTAL</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: CORRECCIÓN DE @ Y DIRECCIÓN</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>A (Vacío) | J (ID con puntos) | K (Nombre limpio) | L (Dirección y Correo COMPLETOS)</p>
+        <p>A (Vacio) | J (ID Puntos) | K (Nombre Limpio) | L (Dirección y Correo REALES)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO TODA LA CASILLA... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO CASILLA POR CASILLA... ESTO TARDA UN POCO...</div>
 
     <div class="table-wrapper">
         <table>
@@ -59,13 +59,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 let datosFinales = [];
 const fileInput = document.getElementById('file-input');
-
 document.getElementById('drop-zone').onclick = () => fileInput.click();
 
 fileInput.onchange = async (e) => {
-    if (e.target.files.length > 0) {
-        await procesarOCR(e.target.files[0]);
-    }
+    if (e.target.files.length > 0) await procesarOCR(e.target.files[0]);
 };
 
 async function procesarOCR(file) {
@@ -75,11 +72,10 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        const viewport = page.getViewport({scale: 3.0});
+        const viewport = page.getViewport({scale: 3.5}); // Escala muy alta para ver bien el @
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+        canvas.height = viewport.height; canvas.width = viewport.width;
         await page.render({canvasContext: context, viewport: viewport}).promise;
 
         const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
@@ -97,50 +93,46 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto (quitamos saltos de línea para que sea una sola tira)
+    // Normalizamos el texto quitando saltos de línea para que todo sea una sola línea de búsqueda
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN (Cédula)
+    // J: IDENTIFICACIÓN
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: CONTRIBUYENTE (Nombre)
+    // K: NOMBRE LIMPIO
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (CAPTURA TOTAL DE CASILLA)
-    // Buscamos el correo en todo el texto (el dato más seguro)
-    const emailMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const email = emailMatch ? emailMatch[0].toLowerCase() : "n/a";
+    // L: DIRECCIÓN Y CORREO (REPARACIÓN DE SÍMBOLOS)
+    // Buscamos el correo primero y arreglamos el @ que el OCR confunde con (Q, (G, Q, etc.
+    let email = "n/a";
+    const emailMangled = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QG]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+    
+    if (emailMangled) {
+        email = emailMangled[0].replace(/\s+/g, '').replace(/[\(@QG]+/g, '@').toLowerCase();
+    }
 
-    // Para la dirección: tomamos TODO desde "DIRECCIÓN" hasta "TELÉFONOS"
+    // Buscamos la dirección: Tomamos todo lo que está entre DIRECCION y CORREO
     let direccion = "N/A";
-    const inicioBusqueda = texto.toUpperCase().indexOf("DIRECCI");
-    const finBusqueda = texto.toUpperCase().indexOf("TEL");
+    const inicioD = texto.toUpperCase().indexOf("DIRECCI");
+    const finD = texto.toUpperCase().indexOf("CORREO");
 
-    if (inicioBusqueda !== -1 && finBusqueda !== -1) {
-        let bloque = texto.substring(inicioBusqueda, finBusqueda);
-        // Limpiamos las etiquetas del formulario para dejar solo el dato
+    if (inicioD !== -1 && finD !== -1) {
+        let bloque = texto.substring(inicioD, finD);
         direccion = bloque
             .replace(/DIRECCI[OÓ]N/gi, "")
             .replace(/MPIO/gi, "")
             .replace(/DTPO/gi, "")
             .replace(/DTP0/gi, "")
-            .replace(/CORREO/gi, "")
-            .replace(/ELECTR[OÓ]NICO/gi, "")
-            .replace(/ELECTRONICO/gi, "")
-            .replace(email.toUpperCase(), "") // Quitamos el correo si quedó duplicado
-            .replace(/[–—\-:;]/g, " ") // Quitamos guiones y puntos del formato
-            .replace(/\s+/g, " ") // Limpiamos espacios dobles
+            .replace(/[–—\-:;]/g, " ")
+            .replace(/\s+/g, " ")
             .trim();
     }
 
-    const colL = `${direccion} / ${email}`;
-
-    // OTROS DATOS
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
@@ -150,7 +142,7 @@ function extraerTodoOCR(t) {
         colE: "RESOLUCION", colF: "NOTIFICACIONES",
         colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
         colH: extraerFechaOCR(texto), colI: texto.match(/PLACA[:\s]+([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        colJ: colJ, colK: nombre, colL: colL,
+        colJ: colJ, colK: nombre, colL: `${direccion} / ${email}`,
         colM: "CALI- VALLE", colN: "CORREO ELECTRONICO", colO: hoy, colP: "YOHANA ESTRADA DUQUE"
     };
 }
@@ -167,7 +159,7 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="dato-importante">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="fix-text">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
