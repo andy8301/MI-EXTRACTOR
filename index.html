@@ -2,31 +2,33 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Extractor Gobernación Final</title>
+    <title>Extractor Gobernación - Versión Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f1f3f4; padding: 10px; }
-        .card { width: 99%; margin: auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .drop-zone { border: 2px dashed #1a73e8; padding: 20px; text-align: center; background: #e8f0fe; cursor: pointer; }
-        .table-wrapper { overflow-x: auto; margin-top: 15px; border: 1px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; font-size: 9px; white-space: nowrap; }
-        th { background: #1a73e8; color: white; padding: 6px; border: 1px solid #fff; text-transform: uppercase; }
-        td { padding: 6px; border: 1px solid #eee; }
-        .btn { width: 100%; padding: 15px; margin-top: 10px; border: none; background: #1a73e8; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #f1f3f4; padding: 15px; }
+        .card { width: 98%; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .drop-zone { border: 2px dashed #1a73e8; padding: 30px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; margin-bottom: 15px; }
+        .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
+        th { background: #1a73e8; color: white; padding: 10px; text-transform: uppercase; border: 1px solid #fff; }
+        td { padding: 10px; border: 1px solid #eee; }
+        .btn { width: 100%; padding: 18px; margin-top: 15px; border: none; border-radius: 8px; background: #1a73e8; color: white; font-weight: bold; cursor: pointer; font-size: 16px; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <div class="drop-zone" id="drop-zone"><strong>📂 ARRASTRE LOS PDF AQUÍ</strong><input type="file" id="file-input" multiple accept="application/pdf" style="display:none"></div>
+    <div id="status"></div>
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
                     <th>SADE DE INGRESO</th><th>IT.</th><th>No. PLANILLA</th><th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th>
-                    <th>ÁREA ADMINISTRATIVA A LA QUE SE REMITE:</th><th>No. ACTO ADMINISTRATIVO Y No. SADE</th>
-                    <th>FECHA ACTO (DD-MM-AAAA)</th><th>PLACAS</th><th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th>
-                    <th>DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th><th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
+                    <th>ÁREA ADMINISTRATIVA</th><th>No. ACTO ADM Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
+                    <th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th><th>DIRECCION Y CORREO</th><th>CIUDAD</th>
+                    <th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
                 </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
@@ -36,12 +38,10 @@
 </div>
 
 <script>
-// RECUERDA CAMBIAR ESTA URL POR LA DE TU NUEVA IMPLEMENTACIÓN
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-let datosFinales = [];
 
+let datosFinales = [];
 document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => procesar(e.target.files);
 
@@ -65,9 +65,18 @@ async function procesar(files) {
 function extraerTodo(t, it) {
     const texto = t.replace(/\s+/g, ' ');
     const sades = texto.match(/\b\d{10}\b/g) || [];
-    const dirPart = texto.match(/DIRECCIÓN - MPIO-DTPO:?\s*([\w\sÑÁÉÍÓÚ.#,-]+?)\s*(?=CORREO|TELEFONOS)/i);
-    const direccion = dirPart ? dirPart[1].trim() : 'N/A';
+    
+    // G: Acto y SADE (Captura mejorada)
+    const numActo = texto.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i)?.[1] || "0000";
+    const colG = `RESOLUCION ${numActo} - SADE ${sades[0] || '0000000000'}`;
+
+    // L y M: Dirección, Correo y Ciudad
+    const dirMatch = texto.match(/DIRECCIÓN - MPIO-DTPO:?\s*(.*?)(?=CORREO|TELEFONO|IDENTIFICACIÓN|$)/i);
+    const direccionCompleta = dirMatch ? dirMatch[1].trim() : "N/A";
     const correo = (texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/A").toLowerCase();
+    
+    // Ciudad (M): Busca el texto después de la última coma o el guion final
+    const ciudadFinal = direccionCompleta.includes(",") ? direccionCompleta.split(",").pop().trim() : "CALI- VALLE DEL CAUCA";
 
     return {
         a: sades[1] || sades[0] || "N/A",
@@ -76,38 +85,39 @@ function extraerTodo(t, it) {
         d: texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i)?.[1] || "N/A",
         e: "RESOLUCION",
         f: "NOTIFICACIONES",
-        g: `RESOLUCION ${texto.match(/-(\d{4})/)?.[1] || '0000'} - SADE ${sades[0] || '0000000000'}`,
+        g: colG,
         h: extraerFecha(texto),
         i: texto.match(/PLACA:?\s*([A-Z0-9]{5,7})/i)?.[1] || "N/A",
         j: texto.match(/IDENTIFICACIÓN:?\s*([\d.]{5,15})/i)?.[1] || "N/A",
-        k: texto.match(/SOLICITANTE:?\s*([\w\sÑÁÉÍÓÚ.]+?)\s*(?=IDENTIFICACIÓN)/i)?.[1].trim().toUpperCase() || "N/A",
-        l: `${direccion} / ${correo}`,
-        m: direccion.split(",").pop().trim() || "CALI",
+        k: texto.match(/SOLICITANTE:?\s*(.*?)(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT|$)/i)?.[1].trim().toUpperCase() || "N/A",
+        l: `${direccionCompleta} / ${correo}`,
+        m: ciudadFinal,
         n: "CORREO ELECTRONICO",
         o: new Date().toLocaleDateString('es-ES'),
-        p: "YOHANA"
+        p: "YOHANA ESTRADA DUQUE"
     };
 }
 
 function extraerFecha(texto) {
     const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
     const f = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
-    return f ? `${f[1].padStart(2,'0')}/${meses[f[2].toUpperCase()]}/${f[3]}` : "N/A";
+    return f ? `${f[1].padStart(2,'0')}/${meses[f[2].toUpperCase()] || '01'}/${f[3]}` : "N/A";
 }
 
 function renderRow(i) {
     document.getElementById('tabla-body').innerHTML += `<tr>
-        <td>${i.a}</td><td>${i.b}</td><td style="background:#fff9c4">---</td><td>${i.d}</td><td>${i.e}</td><td>${i.f}</td>
-        <td>${i.g}</td><td>${i.h}</td><td>${i.i}</td><td>${i.j}</td><td>${i.k}</td><td>${i.l}</td><td>${i.m}</td>
-        <td>${i.n}</td><td>${i.o}</td><td>${i.p}</td>
+        <td>${i.a}</td><td>${i.b}</td><td style="background:#fff9c4">---</td><td>${i.d}</td>
+        <td>${i.e}</td><td>${i.f}</td><td>${i.g}</td><td>${i.h}</td><td>${i.i}</td>
+        <td>${i.j}</td><td>${i.k}</td><td>${i.l}</td><td>${i.m}</td><td>${i.n}</td>
+        <td>${i.o}</td><td>${i.p}</td>
     </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡GUARDADO EXITOSO EN EXCEL!");
-    } catch (e) { alert("❌ Error"); }
+        alert("🎉 ¡DATOS ENVIADOS CON ÉXITO!");
+    } catch (e) { alert("❌ Error de conexión"); }
 };
 </script>
 </body>
