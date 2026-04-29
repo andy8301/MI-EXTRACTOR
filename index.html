@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Recuperada y Corregida</title>
+    <title>Sistema Gobernación — Escáner de Dirección Total</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .resaltado { color: #d93025; font-weight: bold; }
+        .success-row { color: #1e8e3e; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: VERSIÓN RECONSTRUIDA</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: DIRECCIÓN TOTAL</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>A (Vacio) | J (ID con puntos) | K (Nombre Limpio) | L (CALLE... / correo@)</p>
+        <p>A (Vacio) | J (Cédula con puntos) | K (Nombre limpio) | L (CALLE + NÚMEROS + CORREO)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ LEYENDO... CORRIGIENDO SÍMBOLOS... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO CASILLA COMPLETA... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -72,7 +72,7 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        const viewport = page.getViewport({scale: 3.0}); 
+        const viewport = page.getViewport({scale: 3.2}); // Escala óptima para leer números y símbolos
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -93,7 +93,7 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto: una sola línea para evitar saltos locos
+    // Convertimos todo a una sola línea de texto para que la búsqueda no se rompa
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
@@ -101,30 +101,37 @@ function extraerTodoOCR(t) {
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: CONTRIBUYENTE (Nombre)
+    // K: NOMBRE LIMPIO
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (Lógica de rescate)
-    // 1. Limpieza de correo: corregimos (Q, (G por @
-    let rawEmail = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+    // L: DIRECCIÓN Y CORREO (LÓGICA MEJORADA TOTAL)
+    // 1. Extraer y arreglar el Correo (@)
     let email = "n/a";
-    if (rawEmail) {
-        email = rawEmail[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
+    let emailRaw = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+    if (emailRaw) {
+        email = emailRaw[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
     }
 
-    // 2. Dirección: Todo lo que esté después de MPIO/DTPO hasta el correo
+    // 2. Extraer Dirección completa: Todo desde "DIRECCIÓN" hasta "CORREO"
     let direccion = "N/A";
-    let posIni = texto.toUpperCase().indexOf("DTPO");
-    if (posIni === -1) posIni = texto.toUpperCase().indexOf("MPIO");
+    let posIni = texto.toUpperCase().indexOf("DIRECCI");
     let posFin = texto.toUpperCase().indexOf("CORREO");
 
-    if (posIni !== -1 && posFin !== -1) {
-        direccion = texto.substring(posIni + 4, posFin)
-            .replace(/[–—\-:;]/g, " ")
-            .replace(/\s+/g, " ")
+    if (posIni !== -1 && posFin !== -1 && posFin > posIni) {
+        let bloque = texto.substring(posIni, posFin);
+        direccion = bloque
+            .replace(/DIRECCI[OÓ]N/gi, "")
+            .replace(/MPIO/gi, "")
+            .replace(/DTPO/gi, "")
+            .replace(/DTP0/gi, "")
+            .replace(/MP10/gi, "")
+            .replace(/MUNICIPIO/gi, "")
+            .replace(/DEPARTAMENTO/gi, "")
+            .replace(/[–—\-:;]/g, " ") // Borramos los guiones y puntos del formulario
+            .replace(/\s+/g, " ") // Limpiamos espacios dobles
             .trim();
     }
 
@@ -154,14 +161,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="resaltado">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="success-row">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO!");
+        alert("🎉 ¡TODO CAPTURADO Y ENVIADO!");
     } catch (e) { alert("Error"); }
 };
 </script>
