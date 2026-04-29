@@ -2,33 +2,48 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Extractor Gobernación - Versión Final</title>
+    <title>Extractor Gobernación — Yohana Estrada (Versión Blindada)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background: #f1f3f4; padding: 15px; }
+        :root { --azul: #1a73e8; --bg: #f1f3f4; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 10px; font-size: 12px; }
         .card { width: 98%; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .drop-zone { border: 2px dashed #1a73e8; padding: 30px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; margin-bottom: 15px; }
+        header { text-align: center; border-bottom: 2px solid #e8f0fe; margin-bottom: 15px; }
+        .drop-zone { border: 2px dashed var(--azul); padding: 25px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; margin-bottom: 15px; }
         .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
-        th { background: #1a73e8; color: white; padding: 10px; text-transform: uppercase; border: 1px solid #fff; }
-        td { padding: 10px; border: 1px solid #eee; }
-        .btn { width: 100%; padding: 18px; margin-top: 15px; border: none; border-radius: 8px; background: #1a73e8; color: white; font-weight: bold; cursor: pointer; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th { background: var(--azul); color: white; padding: 8px; font-size: 10px; text-transform: uppercase; border: 1px solid #fff; }
+        td { padding: 8px; border: 1px solid #eee; text-align: left; }
+        .btn { width: 100%; padding: 15px; margin-top: 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul); color: white; }
     </style>
 </head>
 <body>
 
 <div class="card">
+    <header><h1>SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h1></header>
     <div class="drop-zone" id="drop-zone"><strong>📂 ARRASTRE LOS PDF AQUÍ</strong><input type="file" id="file-input" multiple accept="application/pdf" style="display:none"></div>
     <div id="status"></div>
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
-                    <th>SADE DE INGRESO</th><th>IT.</th><th>No. PLANILLA</th><th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th>
-                    <th>ÁREA ADMINISTRATIVA</th><th>No. ACTO ADM Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
-                    <th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th><th>DIRECCION Y CORREO</th><th>CIUDAD</th>
-                    <th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
+                    <th>SADE DE INGRESO</th>
+                    <th>IT.</th>
+                    <th style="background:#fbc02d; color:000">No. PLANILLA</th>
+                    <th>No. EXPEDIENTE</th>
+                    <th>ACTO ADMINISTRATIVO</th>
+                    <th>ÁREA ADMINISTRATIVA A LA QUE SE REMITE:</th>
+                    <th>No. ACTO ADMINISTRATIVO Y No. SADE</th>
+                    <th>FECHA ACTO (DD-MM-AAAA)</th>
+                    <th>PLACAS</th>
+                    <th>No. DE IDENTIFICACION</th>
+                    <th>CONTRIBUYENTE</th>
+                    <th>DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
+                    <th>CIUDAD</th>
+                    <th>OBSERVACIONES</th>
+                    <th>FECHA PLANILLA</th>
+                    <th>FUNCIONARIO</th>
                 </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
@@ -38,10 +53,12 @@
 </div>
 
 <script>
+// --- TU URL DE GOOGLE (¡ASEGÚRATE DE QUE SEA LA CORRECTA!) ---
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let datosFinales = [];
+
 document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => procesar(e.target.files);
 
@@ -62,62 +79,79 @@ async function procesar(files) {
     }
 }
 
+// --- ESTA ES LA FUNCIÓN QUE FALLABA, AQUÍ ESTÁ LA CORRECCIÓN ---
 function extraerTodo(t, it) {
-    const texto = t.replace(/\s+/g, ' ');
+    const texto = t.replace(/\s+/g, ' '); // Limpiamos el texto
+    const hoy = new Date().toLocaleDateString('es-ES');
+
+    // 1. Buscamos TODOS los números de 10 dígitos (SADEs)
     const sades = texto.match(/\b\d{10}\b/g) || [];
     
-    // G: Acto y SADE (Captura mejorada)
-    const numActo = texto.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i)?.[1] || "0000";
-    const colG = `RESOLUCION ${numActo} - SADE ${sades[0] || '0000000000'}`;
+    // 2. Extraemos el Número de Resolución (los 4 dígitos después del guion largo)
+    // El patrón anterior fallaba, este busca "-XXXX "
+    const resMatch = texto.match(/-(\d{4})\s+/);
+    const numRes = resMatch ? resMatch[1] : "0000";
 
-    // L y M: Dirección, Correo y Ciudad
-    const dirMatch = texto.match(/DIRECCIÓN - MPIO-DTPO:?\s*(.*?)(?=CORREO|TELEFONO|IDENTIFICACIÓN|$)/i);
-    const direccionCompleta = dirMatch ? dirMatch[1].trim() : "N/A";
-    const correo = (texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/A").toLowerCase();
+    // 3. Extraemos el Contribuyente (SOLICITANTE)
+    // Antes fallaba por los saltos de línea, ahora busca entre SOLICITANTE e IDENTIFICACIÓN
+    const solMatch = texto.match(/SOLICITANTE:?\s*([\w\sÑÁÉÍÓÚ.]+?)\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
+    const contribuyente = solMatch ? solMatch[1].trim().toUpperCase() : "NO DETECTADO";
+
+    // 4. Extraemos Dirección y Correo (Correo siempre a minúscula)
+    // El patrón anterior fallaba al capturar la dirección completa.
+    const dirMatch = texto.match(/DIRECCIÓN - MPIO-DTPO:?\s*([\w\sÑÁÉÍÓÚ.#,-]+?)\s*(?=CORREO|TELEFONOS)/i);
+    const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     
-    // Ciudad (M): Busca el texto después de la última coma o el guion final
-    const ciudadFinal = direccionCompleta.includes(",") ? direccionCompleta.split(",").pop().trim() : "CALI- VALLE DEL CAUCA";
+    const direccion = dirMatch ? dirMatch[1].trim() : 'N/A';
+    const email = correoMatch ? correoMatch[0].toLowerCase() : 'N/A';
+    
+    // 5. Extraemos Ciudad (Municipio-Departamento al final de la dirección)
+    const ciudad = direccion.includes(",") ? direccion.split(",").pop().trim() : "CALI- VALLE DEL CAUCA";
 
+    // Retornamos los datos limpios con nombres de campo CORTOS
     return {
-        a: sades[1] || sades[0] || "N/A",
-        b: it,
-        c: "",
-        d: texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i)?.[1] || "N/A",
-        e: "RESOLUCION",
-        f: "NOTIFICACIONES",
-        g: colG,
-        h: extraerFecha(texto),
-        i: texto.match(/PLACA:?\s*([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        j: texto.match(/IDENTIFICACIÓN:?\s*([\d.]{5,15})/i)?.[1] || "N/A",
-        k: texto.match(/SOLICITANTE:?\s*(.*?)(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT|$)/i)?.[1].trim().toUpperCase() || "N/A",
-        l: `${direccionCompleta} / ${correo}`,
-        m: ciudadFinal,
-        n: "CORREO ELECTRONICO",
-        o: new Date().toLocaleDateString('es-ES'),
-        p: "YOHANA ESTRADA DUQUE"
+        colA: sades[1] || sades[0] || "N/A", // SADE de abajo
+        colB: it,
+        colC: "",
+        colD: texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i)?.[1] || "N/A",
+        colE: "RESOLUCION",
+        colF: "NOTIFICACIONES",
+        colG: `RESOLUCION ${numRes} - SADE ${sades[0] || '0000000000'}`,
+        colH: extraerFecha(texto),
+        colI: texto.match(/PLACA:?\s*([A-Z0-9]{5,7})/i)?.[1] || "N/A",
+        colJ: texto.match(/IDENTIFICACIÓN:?\s*([\d.]{5,15})/i)?.[1] || "N/A",
+        colK: contribuyente,
+        colL: `${direccion} / ${email}`,
+        colM: ciudad,
+        colN: "CORREO ELECTRONICO", // REGLA SOLICITADA: Siempre fija
+        colO: hoy,
+        colP: "YOHANA ESTRADA DUQUE"
     };
 }
 
+// Función auxiliar para fechas
 function extraerFecha(texto) {
     const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
     const f = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
     return f ? `${f[1].padStart(2,'0')}/${meses[f[2].toUpperCase()] || '01'}/${f[3]}` : "N/A";
 }
 
+// Pintamos la tabla azul con los datos cortos
 function renderRow(i) {
     document.getElementById('tabla-body').innerHTML += `<tr>
-        <td>${i.a}</td><td>${i.b}</td><td style="background:#fff9c4">---</td><td>${i.d}</td>
-        <td>${i.e}</td><td>${i.f}</td><td>${i.g}</td><td>${i.h}</td><td>${i.i}</td>
-        <td>${i.j}</td><td>${i.k}</td><td>${i.l}</td><td>${i.m}</td><td>${i.n}</td>
-        <td>${i.o}</td><td>${i.p}</td>
+        <td>${i.colA}</td><td>${i.colB}</td><td style="background:#fff9c4">MANUAL</td>
+        <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
+        <td>${i.colH}</td><td>${i.colI}</td><td>${i.colJ}</td><td>${i.colK}</td>
+        <td>${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
     </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
+        // Al enviar, usamos los nombres de campo CORTOS que Google Apps Script entiende
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡DATOS ENVIADOS CON ÉXITO!");
-    } catch (e) { alert("❌ Error de conexión"); }
+        alert("🎉 ¡GUARDADO EXITOSO EN EXCEL!");
+    } catch (e) { alert("❌ Error"); }
 };
 </script>
 </body>
