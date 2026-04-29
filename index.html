@@ -1,163 +1,243 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor Pro - Gobernación del Valle</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
-    <style>
-        :root { --primary: #1a73e8; --secondary: #34a853; --bg: #f8f9fa; --dark: #202124; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg); margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 1100px; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { margin: 0; color: var(--primary); }
-        #drop-area { border: 2px dashed #dadce0; padding: 50px; text-align: center; cursor: pointer; border-radius: 12px; transition: 0.3s; }
-        #drop-area:hover { border-color: var(--primary); background: #f1f8fe; }
-        .status-card { background: #e8f0fe; padding: 15px; border-radius: 8px; text-align: center; color: var(--primary); margin: 20px 0; display: none; }
-        .table-container { overflow-x: auto; margin-top: 20px; border: 1px solid #e0e0e0; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; min-width: 900px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 13px; }
-        th { background: #f1f3f4; font-size: 11px; text-transform: uppercase; }
-        .btn-send { display: none; width: 100%; padding: 18px; margin-top: 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .tag { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eee; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extractor de Planilla Pro — Azul Institucional</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  
+  :root {
+    --azul-primario: #1a73e8; /* El azul de Google */
+    --azul-oscuro: #0d47a1;
+    --azul-claro: #e8f0fe;
+    --verde-exito: #1e8e3e;
+    --gris-fondo: #f1f3f4;
+    --blanco: #ffffff;
+    --texto: #202124;
+  }
+
+  body { 
+    font-family: 'Inter', sans-serif; 
+    background-color: var(--gris-fondo); 
+    color: var(--texto); 
+    margin: 0; padding: 20px; 
+  }
+
+  .main-card { 
+    max-width: 1200px; 
+    margin: auto; 
+    background: var(--blanco); 
+    padding: 40px; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+  }
+
+  header { 
+    text-align: center; 
+    border-bottom: 2px solid var(--azul-claro); 
+    margin-bottom: 30px; 
+    padding-bottom: 20px; 
+  }
+  header h1 { color: var(--azul-primario); margin: 0; font-size: 28px; font-weight: 700; }
+  header p { color: #5f6368; margin-top: 8px; }
+
+  /* Zona de Carga */
+  .drop-zone { 
+    border: 2px dashed var(--azul-primario); 
+    padding: 60px 20px; 
+    text-align: center; 
+    border-radius: 12px; 
+    background: var(--azul-claro); 
+    cursor: pointer; 
+    transition: all 0.3s ease;
+  }
+  .drop-zone:hover { background: #d2e3fc; border-color: var(--azul-oscuro); }
+  .drop-zone strong { color: var(--azul-oscuro); font-size: 20px; display: block; margin-bottom: 10px; }
+
+  /* Barra de Estado */
+  .status-bar { 
+    padding: 15px; border-radius: 8px; margin-top: 20px; 
+    text-align: center; font-weight: 600; display: none;
+  }
+
+  /* Tabla de Resultados */
+  .table-wrapper { 
+    margin-top: 30px; 
+    border: 1px solid #dadce0; 
+    border-radius: 8px; 
+    overflow: hidden;
+    display: none;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--azul-primario); color: white; padding: 12px; text-align: left; font-weight: 500; }
+  td { padding: 12px; border-bottom: 1px solid #eee; }
+  tr:hover { background-color: #f8f9fa; }
+
+  /* Botones */
+  .btn { 
+    display: inline-block; width: 100%; padding: 16px; 
+    margin-top: 25px; border: none; border-radius: 8px; 
+    cursor: pointer; font-size: 16px; font-weight: 600; 
+    transition: 0.2s;
+  }
+  .btn-primary { background: var(--azul-primario); color: white; }
+  .btn-primary:hover { background: var(--azul-oscuro); box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+  .tag-tipo { 
+    padding: 4px 8px; border-radius: 4px; font-size: 11px; 
+    font-weight: bold; background: #e0e0e0; color: #444; 
+  }
+</style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>SISTEMA DE EXTRACCIÓN AUTOMÁTICA</h1>
-        <p>Unidad de Impuestos, Rentas y Gestión Tributaria</p>
-    </div>
-    
-    <div id="drop-area">
-        <span style="font-size: 40px;">📂</span>
-        <p>Arrastre archivos PDF aquí o haga clic para explorar</p>
-        <input type="file" id="fileElem" multiple accept="application/pdf" style="display:none">
-    </div>
-    
-    <div id="status" class="status-card"></div>
-    
-    <div class="table-container" id="table-wrapper" style="display:none">
-        <table>
-            <thead>
-                <tr>
-                    <th>SADE Ingreso</th>
-                    <th>Acto y SADE</th>
-                    <th>Contribuyente</th>
-                    <th>Identificación</th>
-                    <th>Expediente</th>
-                </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
-    </div>
+<div class="main-card">
+  <header>
+    <h1>SISTEMA DE EXTRACCIÓN PRO</h1>
+    <p>Gestión de Planillas — Paleta Azul Institucional</p>
+  </header>
+  
+  <div class="drop-zone" id="drop-zone">
+    <strong>📂 ARRASTRE LOS PDF AQUÍ</strong>
+    <p>O haga clic para cargar archivos desde su equipo</p>
+    <input type="file" id="file-input" multiple accept="application/pdf" style="display:none">
+  </div>
 
-    <button id="upload-btn" class="btn-send">🚀 ENVIAR DATOS A GOOGLE SHEETS</button>
+  <div id="status-msg" class="status-bar"></div>
+
+  <div id="result-section" class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>SADE INGRESO</th>
+          <th>COL B: ACTO Y SADE</th>
+          <th>CONTRIBUYENTE</th>
+          <th>IDENTIFICACIÓN</th>
+          <th>TIPO</th>
+        </tr>
+      </thead>
+      <tbody id="resumen-body"></tbody>
+    </table>
+    <button class="btn btn-primary" id="btn-enviar">🚀 GUARDAR DATOS EN GOOGLE SHEETS</button>
+  </div>
 </div>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/library/d/1Lq1ZOF1m4zeHyrsgEv2Q3G4kITA1BhQIA9mROSyxh_sG8D5MIhs0vwZt/5";
+// --- CONFIGURACIÓN ---
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let extractedData = [];
-    const dropArea = document.getElementById('drop-area');
-    const fileElem = document.getElementById('fileElem');
-    const status = document.getElementById('status');
-    const tableBody = document.getElementById('table-body');
-    const tableWrapper = document.getElementById('table-wrapper');
-    const uploadBtn = document.getElementById('upload-btn');
+let dataFinal = [];
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const resumenBody = document.getElementById('resumen-body');
+const statusMsg = document.getElementById('status-msg');
+const resultSection = document.getElementById('result-section');
+const btnEnviar = document.getElementById('btn-enviar');
 
-    dropArea.onclick = () => fileElem.click();
-    fileElem.onchange = (e) => handleFiles(e.target.files);
-    dropArea.addEventListener('dragover', (e) => { e.preventDefault(); });
-    dropArea.addEventListener('drop', (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+dropZone.onclick = () => fileInput.click();
+fileInput.onchange = (e) => handleFiles(e.target.files);
 
-    async function handleFiles(files) {
-        if (files.length === 0) return;
-        extractedData = [];
-        tableBody.innerHTML = "";
-        status.style.display = "block";
-        status.innerText = "⏳ Extrayendo datos del PDF...";
-        
-        for (let file of files) {
-            try {
-                const buffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    fullText += content.items.map(s => s.str).join(' ') + " \n ";
-                }
-                const data = analizarTexto(fullText);
-                extractedData.push(data);
-                tableBody.innerHTML += `<tr><td>${data.sadeIngreso}</td><td>${data.actoYSade}</td><td>${data.solicitante}</td><td>${data.identificacion}</td><td>${data.expediente}</td></tr>`;
-            } catch (err) { console.error(err); }
-        }
-        status.innerText = `✅ ${files.length} documentos listos.`;
-        tableWrapper.style.display = "block";
-        uploadBtn.style.display = "block";
-    }
+// Drag & Drop
+dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.background = "#d2e3fc"; };
+dropZone.ondragleave = () => { dropZone.style.background = "#e8f0fe"; };
+dropZone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
 
-    function analizarTexto(t) {
-        const tU = t.toUpperCase();
-        
-        // SADE INGRESO (Busca el primer número de 10 dígitos)
-        const sadePrincipal = t.match(/\b\d{10}\b/)?.[0] || "N/A";
-        
-        // RESOLUCION (Busca el número que termina después del guion, ej: -0514)
-        const resMatch = t.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i);
-        const numRes = resMatch ? resMatch[1] : "0000";
-        const actoYSade = `RESOLUCION ${numRes} - SADE ${sadePrincipal}`;
+async function handleFiles(files) {
+  if (files.length === 0) return;
+  dataFinal = [];
+  resumenBody.innerHTML = "";
+  updateStatus("⏳ Leyendo documentos...", "#e8f0fe", "#1a73e8");
 
-        // EXPEDIENTE (Busca el formato largo con puntos y guiones)
-        const expMatch = t.match(/(?:EXPEDIENTE|EXP)[:\s]+([\d.-]{10,})/i);
-        
-        // CONTRIBUYENTE (Basado en tu PDF, busca entre "SOLICITANTE:" e "IDENTIFICACIÓN:")
-        const solMatch = t.match(/SOLICITANTE:?\s*\n?\s*([A-Z\sÑÁÉÍÓÚ]+?)\s*\n?\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
-        
-        // IDENTIFICACIÓN
-        const idMatch = t.match(/(?:IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
-        
-        // DIRECCION Y CORREO
-        const dirMatch = t.match(/(?:DIRECCIÓN|DIRECCION)[:\s]+([\s\S]+?)(?=CORREO|TELEFONO|TELÉFONO)/i);
-        const correoMatch = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  for (let file of files) {
+    try {
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+      let fullText = "";
 
-        // FECHA ACTO (14 DE ABRIL DEL 2026)
-        const meses = {"enero":"01","febrero":"02","marzo":"03","abril":"04","mayo":"05","junio":"06","julio":"07","agosto":"08","septiembre":"09","octubre":"10","noviembre":"11","diciembre":"12"};
-        const fM = t.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DEL\s+(\d{4})/i);
-        const fechaDoc = fM ? `${fM[1].padStart(2,'0')}/${meses[fM[2].toLowerCase()] || '01'}/${fM[3]}` : "N/A";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        fullText += content.items.map(s => s.str).join(' ') + " \n ";
+      }
 
-        // FUNCIONARIO (Proyectó)
-        const proyMatch = t.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO)[:\s]+([A-Z\sÑÁÉÍÓÚ.]{5,50})/i);
+      const info = parsearDocumento(fullText);
+      dataFinal.push(info);
+      
+      resumenBody.innerHTML += `
+        <tr>
+          <td><b>${info.sadeIngreso}</b></td>
+          <td>${info.actoYSade}</td>
+          <td>${info.solicitante}</td>
+          <td>${info.identificacion}</td>
+          <td><span class="tag-tipo">${info.tipoDocumento}</span></td>
+        </tr>`;
+    } catch (e) { console.error(e); }
+  }
 
-        return {
-            sadeIngreso: sadePrincipal,
-            actoYSade: actoYSade,
-            expediente: expMatch ? expMatch[1].trim() : "N/A",
-            actoAdministrativo: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION",
-            areaAdministrativa: "NOTIFICACIONES",
-            solicitante: solMatch ? solMatch[1].trim() : "NO DETECTADO",
-            dir_correo: `${(dirMatch ? dirMatch[1].trim().replace(/\n/g, ' ') : "N/D")} / ${(correoMatch ? correoMatch[0] : "N/D")}`,
-            ciudad: "CALI",
-            fechaActo: fechaDoc,
-            identificacion: idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D",
-            funcionario: proyMatch ? proyMatch[1].trim() : "NO DETECTADO",
-            observaciones: correoMatch ? correoMatch[0] : "N/D",
-            tipoDocumento: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION"
-        };
-    }
+  updateStatus(`✅ ${files.length} archivos listos para enviar.`, "#e6ffed", "#1e8e3e");
+  resultSection.style.display = "block";
+}
 
-    uploadBtn.onclick = async () => {
-        status.innerText = "🚀 Enviando a la nube...";
-        try {
-            await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: extractedData }) });
-            status.innerHTML = "<b style='color:green'>🎉 ¡ÉXITO! DATOS GUARDADOS.</b>";
-            uploadBtn.style.display = "none";
-        } catch (e) { status.innerText = "❌ Error al enviar."; }
-    };
+function parsearDocumento(t) {
+  const tU = t.toUpperCase();
+  const sadeMatch = t.match(/\b\d{10}\b/);
+  const numSade = sadeMatch ? sadeMatch[0] : "N/A";
+  const resMatch = t.match(/(?:RESOLUCION|RESOLUCIÓN|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i);
+  const ultimos4 = resMatch ? resMatch[1] : "0000";
+  
+  const solMatch = t.match(/SOLICITANTE:?\s*\n?\s*([A-Z\sÑÁÉÍÓÚ]+?)\s*\n?\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
+  const idMatch = t.match(/(?:IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
+  const fMatch = t.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DEL\s+(\d{4})/i);
+  const meses = {"enero":"01","febrero":"02","marzo":"03","abril":"04","mayo":"05","junio":"06","julio":"07","agosto":"08","septiembre":"09","octubre":"10","noviembre":"11","diciembre":"12"};
+
+  return {
+    sadeIngreso: numSade,
+    actoYSade: `RESOLUCION ${ultimos4} - SADE ${numSade}`,
+    expediente: t.match(/(?:EXPEDIENTE|EXP)[:\s]+([\d.-]{10,})/i)?.[1] || "N/A",
+    actoAdministrativo: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION",
+    areaAdministrativa: "NOTIFICACIONES",
+    solicitante: solMatch ? solMatch[1].trim() : "NO DETECTADO",
+    dir_correo: "VER EN EXCEL",
+    ciudad: "CALI",
+    fechaActo: fMatch ? `${fMatch[1].padStart(2,'0')}/${meses[fMatch[2].toLowerCase()] || '01'}/${fMatch[3]}` : "N/A",
+    identificacion: idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D",
+    funcionario: t.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO)[:\s]+([A-Z\sÑÁÉÍÓÚ.]{5,50})/i)?.[1] || "NO DETECTADO",
+    observaciones: t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/D",
+    tipoDocumento: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION"
+  };
+}
+
+btnEnviar.onclick = async () => {
+  updateStatus("🚀 Enviando a Google Sheets...", "#fff3cd", "#856404");
+  btnEnviar.disabled = true;
+  try {
+    await fetch(WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify({ registros: dataFinal })
+    });
+    updateStatus("🎉 ¡DATOS ENVIADOS CON ÉXITO!", "#d4edda", "#155724");
+    btnEnviar.style.display = "none";
+  } catch (e) {
+    updateStatus("❌ Error al enviar.", "#f8d7da", "#721c24");
+    btnEnviar.disabled = false;
+  }
+};
+
+function updateStatus(msg, bg, color) {
+  statusMsg.style.display = "block";
+  statusMsg.innerText = msg;
+  statusMsg.style.background = bg;
+  statusMsg.style.color = color;
+}
 </script>
 </body>
 </html>
