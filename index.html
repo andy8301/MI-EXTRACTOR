@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Perfeccionada</title>
+    <title>Sistema Gobernación — Versión Estable Recuperada</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .data-final { color: #1e8e3e; font-weight: 800; background: #f6ffed; }
+        .success-data { color: #1e8e3e; font-weight: 800; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: VERSIÓN PERFECCIONADA</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: VERSIÓN ESTABLE</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>📂 CLIC AQUÍ PARA SUBIR EL PDF</strong>
-        <p>Corregido: 4 → # | Espacio → Guion (-) | Limpieza de letras iniciales.</p>
+        <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
+        <p>Recuperado: Captura de bloque completo sin alteraciones de números.</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO Y AUTOCORRIGIENDO DIRECCIÓN... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -93,20 +93,21 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
+    // Normalización: quitamos saltos de línea para leer como un solo párrafo
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN
+    // J: IDENTIFICACIÓN (Cédula con puntos)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: NOMBRE
+    // K: CONTRIBUYENTE (Nombre limpio)
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (AUTOCORRECCIÓN)
+    // L: DIRECCIÓN Y CORREO (BLOQUE TOTAL)
     let email = "n/a";
     let emailMatch = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || 
                      texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
@@ -115,33 +116,25 @@ function extraerTodoOCR(t) {
     }
 
     let direccion = "N/A";
-    const posStart = texto.toUpperCase().indexOf("DIRECCI");
-    const posEnd = texto.toUpperCase().indexOf("CORREO");
+    let posIni = texto.toUpperCase().indexOf("DIRECCI");
+    let posFin = texto.toUpperCase().indexOf("CORREO");
 
-    if (posStart !== -1 && posEnd !== -1) {
-        let bloque = texto.substring(posStart, posEnd);
-        
+    if (posIni !== -1 && posFin !== -1 && posFin > posIni) {
+        let bloque = texto.substring(posIni, posFin);
         direccion = bloque
             .replace(/DIRECCI[OÓ]N/gi, "")
             .replace(/MPIO/gi, "")
             .replace(/DTPO/gi, "")
             .replace(/DTP0/gi, "")
-            .replace(/\s+/g, " ")
+            .replace(/–|—|-/g, " ") // Cambiamos guiones largos por espacios
+            .replace(/:/g, " ") 
+            .replace(/\s+/g, " ") 
             .trim();
-
-        // --- LÓGICA DE REPARACIÓN DE SÍMBOLOS ---
         
-        // 1. Quitar letras ruidosas al inicio (como la "A" que mencionaste)
-        direccion = direccion.replace(/^[A-Z]\s+/, "");
-
-        // 2. Corregir el "4" por el símbolo "#" (Ej: 12 4 87 -> 12 # 87)
-        direccion = direccion.replace(/(\d+)\s+4\s+(\d+)/g, "$1 # $2");
-
-        // 3. Corregir el espacio por un guion entre números de dirección (Ej: 87 40 -> 87-40)
-        direccion = direccion.replace(/(\d{2,})\s+(\d{2,})/g, "$1-$2");
-        
-        // Limpieza final de puntos y guiones sobrantes al inicio
-        direccion = direccion.replace(/^[:\s–-]+/, '').trim();
+        // Quitar posibles letras sueltas que deja el OCR al inicio del bloque
+        if (direccion.length > 2) {
+            direccion = direccion.replace(/^[A-Z0-9]\s+/, "");
+        }
     }
 
     const sades = texto.match(/\b\d{10}\b/g) || [];
@@ -170,14 +163,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="data-final">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="success-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡DIRECCIÓN CORREGIDA Y ENVIADA!");
+        alert("🎉 ¡LISTO! Versión estable enviada.");
     } catch (e) { alert("Error"); }
 };
 </script>
