@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Escáner de Dirección Total</title>
+    <title>Sistema Gobernación — Extracción de Bloque Total</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .success-row { color: #1e8e3e; font-weight: bold; }
+        .success-data { color: #1e8e3e; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: DIRECCIÓN TOTAL</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: EXTRACCIÓN TOTAL DE DIRECCIÓN</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>A (Vacio) | J (Cédula con puntos) | K (Nombre limpio) | L (CALLE + NÚMEROS + CORREO)</p>
+        <strong>📂 PULSE AQUÍ O ARRASTRE EL PDF</strong>
+        <p>A (Vacio) | J (Cédula Puntos) | K (Nombre Limpio) | L (CALLE 12... VALLE / CORREO)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO CASILLA COMPLETA... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO DIRECCIÓN Y CORREO... ESTO PUEDE TARDAR UN POCO...</div>
 
     <div class="table-wrapper">
         <table>
@@ -50,7 +50,7 @@
         </table>
     </div>
 
-    <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
+    <button class="btn" id="btn-enviar">🚀 ENVIAR LAS 16 COLUMNAS AL EXCEL</button>
 </div>
 
 <script>
@@ -72,7 +72,8 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        const viewport = page.getViewport({scale: 3.2}); // Escala óptima para leer números y símbolos
+        // Escala 3.5 para máxima precisión en símbolos y números
+        const viewport = page.getViewport({scale: 3.5}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -93,13 +94,14 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Convertimos todo a una sola línea de texto para que la búsqueda no se rompa
+    // Convertimos todo el texto a una tira continua para evitar cortes de línea
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN (Cédula)
+    // J: IDENTIFICACIÓN (Dato Ancla 1)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
-    const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
+    const idCruda = idMatch ? idMatch[1].trim() : "N/A";
+    const colJ = formatearCedula(idCruda);
 
     // K: NOMBRE LIMPIO
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
@@ -107,34 +109,40 @@ function extraerTodoOCR(t) {
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (LÓGICA MEJORADA TOTAL)
-    // 1. Extraer y arreglar el Correo (@)
+    // L: DIRECCIÓN Y CORREO (LÓGICA REFORZADA)
+    
+    // 1. Buscamos el correo (Dato Ancla 2) y arreglamos el @
     let email = "n/a";
-    let emailRaw = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    if (emailRaw) {
-        email = emailRaw[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
+    let emailFrag = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+    if (emailFrag) {
+        email = emailFrag[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
     }
 
-    // 2. Extraer Dirección completa: Todo desde "DIRECCIÓN" hasta "CORREO"
+    // 2. Extraer DIRECCIÓN: Todo lo que hay ENTRE la Cédula y el Correo
     let direccion = "N/A";
-    let posIni = texto.toUpperCase().indexOf("DIRECCI");
-    let posFin = texto.toUpperCase().indexOf("CORREO");
+    if (idCruda !== "N/A" && email !== "n/a") {
+        let posCédula = texto.indexOf(idCruda);
+        let posCorreo = texto.toLowerCase().indexOf(email.substring(0, 5)); // buscamos el inicio del correo
 
-    if (posIni !== -1 && posFin !== -1 && posFin > posIni) {
-        let bloque = texto.substring(posIni, posFin);
-        direccion = bloque
-            .replace(/DIRECCI[OÓ]N/gi, "")
-            .replace(/MPIO/gi, "")
-            .replace(/DTPO/gi, "")
-            .replace(/DTP0/gi, "")
-            .replace(/MP10/gi, "")
-            .replace(/MUNICIPIO/gi, "")
-            .replace(/DEPARTAMENTO/gi, "")
-            .replace(/[–—\-:;]/g, " ") // Borramos los guiones y puntos del formulario
-            .replace(/\s+/g, " ") // Limpiamos espacios dobles
-            .trim();
+        if (posCédula !== -1 && posCorreo !== -1 && posCorreo > posCédula) {
+            // El bloque entre la cédula y el correo contiene la dirección y los títulos
+            let bloque = texto.substring(posCédula + idCruda.length, posCorreo);
+            
+            // Limpiamos los títulos del formulario que estorban
+            direccion = bloque
+                .replace(/DIRECCI[OÓ]N/gi, "")
+                .replace(/MPIO/gi, "")
+                .replace(/DTPO/gi, "")
+                .replace(/DTP0/gi, "")
+                .replace(/CORREO/gi, "")
+                .replace(/ELECTR[OÓ]NICO/gi, "")
+                .replace(/[–—\-:;]/g, " ") // Quitamos guiones y puntos
+                .replace(/\s+/g, " ") // Limpiamos espacios dobles
+                .trim();
+        }
     }
 
+    // --- Otros datos ---
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
@@ -161,14 +169,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="success-row">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="success-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡TODO CAPTURADO Y ENVIADO!");
+        alert("🎉 ¡TODO CAPTURADO CORRECTAMENTE!");
     } catch (e) { alert("Error"); }
 };
 </script>
