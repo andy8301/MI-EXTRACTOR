@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión SADE 10 Dígitos</title>
+    <title>Sistema Gobernación — Extracción SADE Precisa</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .sade-highlight { color: #d93025; font-weight: bold; }
+        .sade-focus { background-color: #e8f0fe; font-weight: 700; color: #d93025; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PRECISIÓN SADE 10 DÍGITOS</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: SADE DE INGRESO EXACTO</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>Columna A: Capturando solo los 10 números de RADICACION</p>
+        <p>Buscando específicamente: RADICACION -> 10 dígitos</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ LEYENDO RADICACIÓN Y DATOS... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO RADICACIÓN... POR FAVOR NO CIERRE LA VENTANA...</div>
 
     <div class="table-wrapper">
         <table>
@@ -42,9 +42,9 @@
                     <th style="background:#fbc02d; color:000">No. PLANILLA</th>
                     <th>No. EXPEDIENTE</th>
                     <th>ACTO ADMINISTRATIVO</th>
-                    <th>ÁREA ADMINISTRATIVA...</th>
+                    <th>ÁREA ADMINISTRATIVA A LA QUE SE REMITE:</th>
                     <th>No. ACTO ADMINISTRATIVO Y No. SADE</th>
-                    <th>FECHA ACTO</th>
+                    <th>FECHA ACTO (DD-MM-AAAA)</th>
                     <th>PLACAS</th>
                     <th>No. DE IDENTIFICACION</th>
                     <th>CONTRIBUYENTE</th>
@@ -94,39 +94,41 @@ async function procesarOCR(file) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto quitando saltos de línea locos
     const texto = t.replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // --- REGLA COLUMNA A: SADE DE INGRESO (Busca Radicacion y toma 10 números) ---
-    const matchSadeA = texto.match(/RADICACION[:\s]+(\d{10})/i);
-    const colA = matchSadeA ? matchSadeA[1] : (texto.match(/\b\d{10}\b/g)?.[1] || "N/A");
+    // --- REGLA DE ORO: SADE DE INGRESO (Busca Radicacion y toma los 10 números siguientes) ---
+    const matchRad = texto.match(/RADICACION[:\s]+(\d{10})/i);
+    const colA = matchRad ? matchRad[1] : (texto.match(/\b\d{10}\b/g)?.[1] || "N/A");
 
-    // --- NOMBRE LIMPIO (K) ---
+    // --- SADE DEL ACTO (Encabezado) ---
+    const sadesGeneral = texto.match(/\b\d{10}\b/g) || [];
+    const sadeEncabezado = sadesGeneral[0] || "0000000000";
+
+    // --- LIMPIEZA NOMBRE (K) ---
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,60})/i);
     let nombreLimpio = solMatch ? solMatch[1].trim() : "N/A";
-    nombreLimpio = nombreLimpio.replace(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|IDENTIFIC|CC|NIT/gi, "").trim();
+    nombreLimpio = nombreLimpio.replace(/IDENTIFICACION|IDENTIFICACI|CC|NIT|IDENTIFICA/gi, "").trim();
 
-    // --- OTROS DATOS ---
-    const idMatch = texto.match(/(?:IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
-    const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
-    const sades = texto.match(/\b\d{10}\b/g) || [];
-    
+    // --- DIRECCIÓN Y CORREO (L) ---
     const dirMatch = texto.match(/DIRECCION[:\s]+(.*?)(?=CORREO|TEL|$)/i);
     const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const emailLower = correoMatch ? correoMatch[0].toLowerCase() : 'N/A';
 
+    // --- RESOLUCIÓN ---
+    const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
+
     return {
-        colA: colA,
+        colA: colA, // SADE DE INGRESO (10 dígitos)
         colB: datosFinales.length + 1,
         colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
         colE: "RESOLUCION",
         colF: "NOTIFICACIONES",
-        colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
+        colG: `RESOLUCION ${resNum} - SADE ${sadeEncabezado}`,
         colH: extraerFechaOCR(texto),
         colI: texto.match(/PLACA[:\s]+([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        colJ: idMatch ? idMatch[1] : "N/A",
+        colJ: texto.match(/(?:IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i)?.[1] || "N/A",
         colK: nombreLimpio,
         colL: `${dirMatch ? dirMatch[1].trim() : 'N/A'} / ${emailLower}`,
         colM: "CALI- VALLE",
@@ -145,7 +147,7 @@ function extraerFechaOCR(texto) {
 function renderRow(i) {
     document.getElementById('resultado').innerHTML += `
         <tr>
-            <td class="sade-highlight">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
+            <td class="sade-focus">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td>${i.colJ}</td><td>${i.colK}</td>
             <td>${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
@@ -155,7 +157,7 @@ function renderRow(i) {
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡LISTO! SE ENVIARON LAS 16 COLUMNAS.");
+        alert("🎉 ¡ENVIADO AL EXCEL CON ÉXITO!");
     } catch (e) { alert("❌ Error"); }
 };
 </script>
