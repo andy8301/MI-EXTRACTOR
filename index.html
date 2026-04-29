@@ -2,45 +2,57 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA GOBERNACIÓN — VERSIÓN FINAL OCR</title>
+    <title>Sistema Gobernación — Versión SADE 10 Dígitos</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         :root { --azul: #1a73e8; --bg: #f8f9fa; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 15px; font-size: 11px; }
-        .card { max-width: 98%; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .card { max-width: 99%; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .drop-zone { border: 3px dashed var(--azul); padding: 40px; text-align: center; color: var(--azul); cursor: pointer; background: #e8f0fe; border-radius: 10px; margin-bottom: 20px; }
         .loading { display: none; text-align: center; padding: 15px; background: #fff3cd; color: #856404; font-weight: bold; border-radius: 8px; margin-bottom: 10px; }
         .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-        th { background: var(--azul); color: white; padding: 8px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
+        th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .manual { background: #fff9c4; font-weight: bold; text-align: center; }
+        .sade-highlight { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: 16 COLUMNAS (MODO VISIÓN)</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PRECISIÓN SADE 10 DÍGITOS</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>El sistema escaneará la imagen del documento para extraer los 16 datos.</p>
+        <p>Columna A: Capturando solo los 10 números de RADICACION</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO DOCUMENTO... ESTO PUEDE TARDAR 10 SEGUNDOS...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO RADICACIÓN Y DATOS... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
-                    <th>A: SADE ING.</th><th>B: IT.</th><th>C: PLANILLA</th><th>D: EXPEDIENTE</th>
-                    <th>E: ACTO</th><th>F: AREA</th><th>G: ACTO Y SADE</th><th>H: FECHA</th>
-                    <th>I: PLACA</th><th>J: IDENTIFICACIÓN</th><th>K: CONTRIBUYENTE</th>
-                    <th>L: DIR / CORREO</th><th>M: CIUDAD</th><th>N: OBSERVACIONES</th><th>O: FECHA P.</th><th>P: FUNCIONARIO</th>
+                    <th>SADE DE INGRESO</th>
+                    <th>IT.</th>
+                    <th style="background:#fbc02d; color:000">No. PLANILLA</th>
+                    <th>No. EXPEDIENTE</th>
+                    <th>ACTO ADMINISTRATIVO</th>
+                    <th>ÁREA ADMINISTRATIVA...</th>
+                    <th>No. ACTO ADMINISTRATIVO Y No. SADE</th>
+                    <th>FECHA ACTO</th>
+                    <th>PLACAS</th>
+                    <th>No. DE IDENTIFICACION</th>
+                    <th>CONTRIBUYENTE</th>
+                    <th>DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
+                    <th>CIUDAD</th>
+                    <th>OBSERVACIONES</th>
+                    <th>FECHA PLANILLA</th>
+                    <th>FUNCIONARIO</th>
                 </tr>
             </thead>
             <tbody id="resultado"></tbody>
@@ -82,19 +94,30 @@ async function procesarOCR(file) {
 }
 
 function extraerTodoOCR(t) {
+    // Normalizamos el texto quitando saltos de línea locos
     const texto = t.replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
-    const sades = texto.match(/\b\d{10}\b/g) || [];
 
-    // Lógica de extracción por visión
-    const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
-    const idMatch = texto.match(/(?:IDENTIFICACION|IDENTIFICACIÓN|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
+    // --- REGLA COLUMNA A: SADE DE INGRESO (Busca Radicacion y toma 10 números) ---
+    const matchSadeA = texto.match(/RADICACION[:\s]+(\d{10})/i);
+    const colA = matchSadeA ? matchSadeA[1] : (texto.match(/\b\d{10}\b/g)?.[1] || "N/A");
+
+    // --- NOMBRE LIMPIO (K) ---
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,60})/i);
+    let nombreLimpio = solMatch ? solMatch[1].trim() : "N/A";
+    nombreLimpio = nombreLimpio.replace(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|IDENTIFIC|CC|NIT/gi, "").trim();
+
+    // --- OTROS DATOS ---
+    const idMatch = texto.match(/(?:IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
+    const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
+    const sades = texto.match(/\b\d{10}\b/g) || [];
+    
     const dirMatch = texto.match(/DIRECCION[:\s]+(.*?)(?=CORREO|TEL|$)/i);
     const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const emailLower = correoMatch ? correoMatch[0].toLowerCase() : 'N/A';
 
-    const info = {
-        colA: sades[1] || sades[0] || "N/A",
+    return {
+        colA: colA,
         colB: datosFinales.length + 1,
         colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
@@ -104,14 +127,13 @@ function extraerTodoOCR(t) {
         colH: extraerFechaOCR(texto),
         colI: texto.match(/PLACA[:\s]+([A-Z0-9]{5,7})/i)?.[1] || "N/A",
         colJ: idMatch ? idMatch[1] : "N/A",
-        colK: solMatch ? solMatch[1].trim() : "N/A",
-        colL: `${dirMatch ? dirMatch[1].trim() : 'N/A'} / ${correoMatch ? correoMatch[0].toLowerCase() : 'N/A'}`,
+        colK: nombreLimpio,
+        colL: `${dirMatch ? dirMatch[1].trim() : 'N/A'} / ${emailLower}`,
         colM: "CALI- VALLE",
         colN: "CORREO ELECTRONICO",
         colO: hoy,
         colP: "YOHANA ESTRADA DUQUE"
     };
-    return info;
 }
 
 function extraerFechaOCR(texto) {
@@ -123,7 +145,7 @@ function extraerFechaOCR(texto) {
 function renderRow(i) {
     document.getElementById('resultado').innerHTML += `
         <tr>
-            <td>${i.colA}</td><td>${i.colB}</td><td class="manual">${i.colC}</td>
+            <td class="sade-highlight">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td>${i.colJ}</td><td>${i.colK}</td>
             <td>${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
@@ -133,8 +155,8 @@ function renderRow(i) {
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡LAS 16 COLUMNAS SE ENVIARON AL EXCEL!");
-    } catch (e) { alert("❌ Error al enviar."); }
+        alert("🎉 ¡LISTO! SE ENVIARON LAS 16 COLUMNAS.");
+    } catch (e) { alert("❌ Error"); }
 };
 </script>
 </body>
