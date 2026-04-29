@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Final Corregida</title>
+    <title>Sistema Gobernación — Versión Final L: Dirección y Correo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,22 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .id-text { color: #1a73e8; font-weight: bold; }
-        .dir-text { color: #d93025; font-weight: bold; font-size: 10px; }
+        .success-text { color: #1e8e3e; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PASO FINAL DIRECCIÓN/CORREO</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PRECISIÓN TOTAL</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dir/Correo) FORZADO</p>
+        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dirección/Correo) CORREGIDO</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ LEYENDO DIRECCIÓN Y CORREO... ESTO TOMA UNOS SEGUNDOS...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO... BUSCANDO DIRECCIÓN Y CORREO... ESPERE UN MOMENTO...</div>
 
     <div class="table-wrapper">
         <table>
@@ -41,16 +40,16 @@
                     <th>SADE DE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:000">No. PLANILLA</th>
                     <th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th><th>ÁREA ADMINISTRATIVA...</th>
                     <th>No. ACTO ADMINISTRATIVO Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
-                    <th style="background:#e8f0fe; color:#1a73e8;">No. DE IDENTIFICACION</th>
-                    <th>CONTRIBUYENTE</th><th>DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th><th>CIUDAD</th>
-                    <th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
+                    <th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th>
+                    <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
+                    <th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
                 </tr>
             </thead>
             <tbody id="resultado"></tbody>
         </table>
     </div>
 
-    <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
+    <button class="btn" id="btn-enviar">🚀 ENVIAR LAS 16 COLUMNAS AL EXCEL</button>
 </div>
 
 <script>
@@ -83,51 +82,46 @@ async function procesarOCR(file) {
     renderRow(info);
 }
 
-function formatearMiles(num) {
+function formatearCedula(num) {
     if (!num || num === "N/A") return "N/A";
     let soloNumeros = num.toString().replace(/\D/g, '');
     return soloNumeros.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto quitando saltos de línea y espacios triples
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN
+    // --- A: SADE VACÍO ---
+    const colA = "";
+
+    // --- J: ID CON PUNTOS ---
     const idRegex = /(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT|IDENTIFICA)[:\s]+([\d.]{6,15})/i;
     const matchId = texto.match(idRegex);
-    const colJ = formatearMiles(matchId ? matchId[1].trim() : "N/A");
+    const colJ = formatearCedula(matchId ? matchId[1].trim() : "N/A");
 
-    // K: CONTRIBUYENTE
+    // --- K: NOMBRE LIMPIO ---
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
-    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT|DIRECCION/i)[0].trim();
+    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|C\.C|NIT|CC|DIRECCION/i)[0].trim();
 
-    // L: DIRECCIÓN Y CORREO (Búsqueda reforzada)
-    // Buscamos el correo en todo el texto primero
-    const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const email = correoMatch ? correoMatch[0].toLowerCase() : "n/a";
+    // --- L: DIRECCIÓN Y CORREO (CORREGIDO) ---
+    // Buscamos dirección entre "DIRECCIÓN" y "CORREO" usando regex flexible para los guiones
+    const regexDir = /(?:DIRECCI[OÓ]N\s*[–-]\s*MPIO\s*[–-]\s*DTPO|DIRECCI[OÓ]N)[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENTIFICACI|$)/i;
+    const matchDir = texto.match(regexDir);
+    const direccion = matchDir ? matchDir[1].trim() : "N/A";
 
-    // Buscamos la dirección entre la palabra DIRECCION y la palabra CORREO o TELEFONO
-    const regexDir = /(?:DIRECCI[OÓ]N|D1RECC|DIR|DIRECC)\s*-\s*MPIO-DTPO[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENT|$)/i;
-    const dirMatch = texto.match(regexDir);
-    let direccion = dirMatch ? dirMatch[1].trim() : "N/A";
-    
-    // Si la dirección sigue siendo N/A, intentamos una búsqueda más abierta
-    if (direccion === "N/A") {
-        const fallbackDir = texto.match(/(?:DIRECCI[OÓ]N|DIRECC)[:\s]+(.*?)(?=CORREO|TEL|$)/i);
-        direccion = fallbackDir ? fallbackDir[1].trim() : "N/A";
-    }
-
+    // Buscamos correo independientemente
+    const matchCorreo = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = matchCorreo ? matchCorreo[0].toLowerCase() : "n/a";
     const colL = `${direccion} / ${email}`;
 
-    // OTROS DATOS
+    // OTROS
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
     return {
-        colA: "", // SADE DE INGRESO VACÍO
+        colA: colA,
         colB: datosFinales.length + 1,
         colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
@@ -157,15 +151,15 @@ function renderRow(i) {
         <tr>
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
-            <td>${i.colH}</td><td>${i.colI}</td><td class="id-text">${i.colJ}</td>
-            <td>${i.colK}</td><td class="dir-text">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
+            <td>${i.colK}</td><td class="success-text">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡TODO LISTO! Datos enviados al Excel.");
+        alert("🎉 ¡TODO PERFECTO! Datos enviados al Excel.");
     } catch (e) { alert("❌ Error"); }
 };
 </script>
