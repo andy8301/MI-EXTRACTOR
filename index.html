@@ -4,108 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Extractor de Planilla Pro — Azul Institucional</title>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-  
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
   :root {
-    --azul-primario: #1a73e8; /* El azul de Google */
+    --azul-google: #1a73e8;
     --azul-oscuro: #0d47a1;
-    --azul-claro: #e8f0fe;
-    --verde-exito: #1e8e3e;
-    --gris-fondo: #f1f3f4;
+    --azul-bg: #e8f0fe;
     --blanco: #ffffff;
-    --texto: #202124;
+    --gris: #f1f3f4;
   }
-
-  body { 
-    font-family: 'Inter', sans-serif; 
-    background-color: var(--gris-fondo); 
-    color: var(--texto); 
-    margin: 0; padding: 20px; 
-  }
-
-  .main-card { 
-    max-width: 1200px; 
-    margin: auto; 
-    background: var(--blanco); 
-    padding: 40px; 
-    border-radius: 12px; 
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-  }
-
-  header { 
-    text-align: center; 
-    border-bottom: 2px solid var(--azul-claro); 
-    margin-bottom: 30px; 
-    padding-bottom: 20px; 
-  }
-  header h1 { color: var(--azul-primario); margin: 0; font-size: 28px; font-weight: 700; }
-  header p { color: #5f6368; margin-top: 8px; }
-
-  /* Zona de Carga */
-  .drop-zone { 
-    border: 2px dashed var(--azul-primario); 
-    padding: 60px 20px; 
-    text-align: center; 
-    border-radius: 12px; 
-    background: var(--azul-claro); 
-    cursor: pointer; 
-    transition: all 0.3s ease;
-  }
-  .drop-zone:hover { background: #d2e3fc; border-color: var(--azul-oscuro); }
-  .drop-zone strong { color: var(--azul-oscuro); font-size: 20px; display: block; margin-bottom: 10px; }
-
-  /* Barra de Estado */
-  .status-bar { 
-    padding: 15px; border-radius: 8px; margin-top: 20px; 
-    text-align: center; font-weight: 600; display: none;
-  }
-
-  /* Tabla de Resultados */
-  .table-wrapper { 
-    margin-top: 30px; 
-    border: 1px solid #dadce0; 
-    border-radius: 8px; 
-    overflow: hidden;
-    display: none;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: var(--azul-primario); color: white; padding: 12px; text-align: left; font-weight: 500; }
-  td { padding: 12px; border-bottom: 1px solid #eee; }
+  body { font-family: 'Inter', sans-serif; background-color: var(--gris); margin: 0; padding: 20px; color: #202124; }
+  .main-card { max-width: 1200px; margin: auto; background: var(--blanco); padding: 35px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+  header { text-align: center; border-bottom: 2px solid var(--azul-bg); margin-bottom: 25px; padding-bottom: 15px; }
+  header h1 { color: var(--azul-google); margin: 0; font-size: 26px; }
+  header p { color: #5f6368; font-size: 14px; margin-top: 5px; }
+  .drop-zone { border: 2px dashed var(--azul-google); padding: 50px 20px; text-align: center; border-radius: 12px; background: var(--azul-bg); cursor: pointer; transition: 0.3s; }
+  .drop-zone:hover { background: #d2e3fc; }
+  .status-bar { padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; font-weight: 600; display: none; }
+  .table-wrapper { margin-top: 25px; border: 1px solid #dadce0; border-radius: 8px; overflow-x: auto; display: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--azul-google); color: white; padding: 12px; text-align: left; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px; border-bottom: 1px solid #eee; }
   tr:hover { background-color: #f8f9fa; }
-
-  /* Botones */
-  .btn { 
-    display: inline-block; width: 100%; padding: 16px; 
-    margin-top: 25px; border: none; border-radius: 8px; 
-    cursor: pointer; font-size: 16px; font-weight: 600; 
-    transition: 0.2s;
-  }
-  .btn-primary { background: var(--azul-primario); color: white; }
-  .btn-primary:hover { background: var(--azul-oscuro); box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3); }
-  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-
-  .tag-tipo { 
-    padding: 4px 8px; border-radius: 4px; font-size: 11px; 
-    font-weight: bold; background: #e0e0e0; color: #444; 
-  }
+  .btn-send { width: 100%; padding: 18px; margin-top: 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul-google); color: white; transition: 0.2s; box-shadow: 0 4px 6px rgba(26,115,232,0.2); }
+  .btn-send:hover { background: var(--azul-oscuro); transform: translateY(-1px); }
+  .btn-send:active { transform: translateY(0); }
 </style>
 </head>
 <body>
 
 <div class="main-card">
   <header>
-    <h1>SISTEMA DE EXTRACCIÓN PRO</h1>
-    <p>Gestión de Planillas — Paleta Azul Institucional</p>
+    <h1>SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h1>
+    <p>Unidad de Impuestos, Rentas y Gestión Tributaria — Paleta Azul</p>
   </header>
   
   <div class="drop-zone" id="drop-zone">
-    <strong>📂 ARRASTRE LOS PDF AQUÍ</strong>
-    <p>O haga clic para cargar archivos desde su equipo</p>
+    <strong style="font-size: 18px; display: block; margin-bottom: 10px;">📂 ARRASTRE SUS PDF AQUÍ</strong>
+    <p>O haga clic para seleccionar archivos de su computador</p>
     <input type="file" id="file-input" multiple accept="application/pdf" style="display:none">
   </div>
 
@@ -119,12 +56,12 @@
           <th>COL B: ACTO Y SADE</th>
           <th>CONTRIBUYENTE</th>
           <th>IDENTIFICACIÓN</th>
-          <th>TIPO</th>
+          <th>EXPEDIENTE</th>
         </tr>
       </thead>
       <tbody id="resumen-body"></tbody>
     </table>
-    <button class="btn btn-primary" id="btn-enviar">🚀 GUARDAR DATOS EN GOOGLE SHEETS</button>
+    <button class="btn-send" id="btn-enviar">🚀 GUARDAR TODO EN GOOGLE SHEETS</button>
   </div>
 </div>
 
@@ -137,106 +74,101 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let dataFinal = [];
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-const resumenBody = document.getElementById('resumen-body');
-const statusMsg = document.getElementById('status-msg');
-const resultSection = document.getElementById('result-section');
-const btnEnviar = document.getElementById('btn-enviar');
 
 dropZone.onclick = () => fileInput.click();
 fileInput.onchange = (e) => handleFiles(e.target.files);
 
-// Drag & Drop
-dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.background = "#d2e3fc"; };
-dropZone.ondragleave = () => { dropZone.style.background = "#e8f0fe"; };
+// Drag & Drop events
+dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = "#0d47a1"; };
+dropZone.ondragleave = () => { dropZone.style.borderColor = "#1a73e8"; };
 dropZone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
 
 async function handleFiles(files) {
   if (files.length === 0) return;
   dataFinal = [];
-  resumenBody.innerHTML = "";
-  updateStatus("⏳ Leyendo documentos...", "#e8f0fe", "#1a73e8");
+  document.getElementById('resumen-body').innerHTML = "";
+  updateStatus("⏳ Analizando documentos... por favor espere", "#e8f0fe", "#1a73e8");
 
   for (let file of files) {
     try {
       const buffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
       let fullText = "";
-
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         fullText += content.items.map(s => s.str).join(' ') + " \n ";
       }
-
       const info = parsearDocumento(fullText);
       dataFinal.push(info);
       
-      resumenBody.innerHTML += `
-        <tr>
-          <td><b>${info.sadeIngreso}</b></td>
-          <td>${info.actoYSade}</td>
-          <td>${info.solicitante}</td>
-          <td>${info.identificacion}</td>
-          <td><span class="tag-tipo">${info.tipoDocumento}</span></td>
-        </tr>`;
+      document.getElementById('resumen-body').innerHTML += `<tr><td><b>${info.sadeIngreso}</b></td><td>${info.actoYSade}</td><td>${info.solicitante}</td><td>${info.identificacion}</td><td>${info.expediente}</td></tr>`;
     } catch (e) { console.error(e); }
   }
-
-  updateStatus(`✅ ${files.length} archivos listos para enviar.`, "#e6ffed", "#1e8e3e");
-  resultSection.style.display = "block";
+  document.getElementById('result-section').style.display = "block";
+  updateStatus(`✅ ${files.length} archivos procesados con éxito.`, "#e6ffed", "#1e8e3e");
 }
 
 function parsearDocumento(t) {
   const tU = t.toUpperCase();
-  const sadeMatch = t.match(/\b\d{10}\b/);
-  const numSade = sadeMatch ? sadeMatch[0] : "N/A";
-  const resMatch = t.match(/(?:RESOLUCION|RESOLUCIÓN|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i);
-  const ultimos4 = resMatch ? resMatch[1] : "0000";
   
-  const solMatch = t.match(/SOLICITANTE:?\s*\n?\s*([A-Z\sÑÁÉÍÓÚ]+?)\s*\n?\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
+  // 1. SADE INGRESO (Busca el primer número de 10 dígitos)
+  const sade = t.match(/\b\d{10}\b/)?.[0] || "N/A";
+
+  // 2. RESOLUCION (Número tras el guion)
+  const resMatch = t.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i);
+  const nRes = resMatch ? resMatch[1] : "0000";
+
+  // 3. CONTRIBUYENTE (Busca entre SOLICITANTE e IDENTIFICACIÓN)
+  const solMatch = t.match(/SOLICITANTE:?\s*([\s\S]+?)(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
+  let contribuyente = solMatch ? solMatch[1].replace(/[\n\r]/g, " ").replace(/\s+/g, " ").trim() : "NO DETECTADO";
+
+  // 4. IDENTIFICACIÓN
   const idMatch = t.match(/(?:IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
-  const fMatch = t.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DEL\s+(\d{4})/i);
-  const meses = {"enero":"01","febrero":"02","marzo":"03","abril":"04","mayo":"05","junio":"06","julio":"07","agosto":"08","septiembre":"09","octubre":"10","noviembre":"11","diciembre":"12"};
+  const cedula = idMatch ? idMatch[1].replace(/\./g, "").trim() : "N/D";
+
+  // 5. EXPEDIENTE
+  const expMatch = t.match(/(?:EXPEDIENTE|EXP)[:\s]+([\d.-]{10,})/i);
+
+  // 6. FECHA ACTO
+  const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
+  const fM = t.match(/(\d{1,2})\s+DE\s+([A-ZÁÉÍÓÚ]+)\s+DE(?:L)?\s+(\d{4})/i);
+  const fecha = fM ? `${fM[1].padStart(2,'0')}/${meses[fM[2].toUpperCase()] || '01'}/${fM[3]}` : "N/A";
+
+  // 7. FUNCIONARIO (Proyectó)
+  const proyMatch = t.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO)[:\s]+([A-Z\sÑÁÉÍÓÚ.]{5,50})/i);
 
   return {
-    sadeIngreso: numSade,
-    actoYSade: `RESOLUCION ${ultimos4} - SADE ${numSade}`,
-    expediente: t.match(/(?:EXPEDIENTE|EXP)[:\s]+([\d.-]{10,})/i)?.[1] || "N/A",
+    sadeIngreso: sade,
+    actoYSade: `RESOLUCION ${nRes} - SADE ${sade}`,
+    expediente: expMatch ? expMatch[1].trim() : "N/A",
     actoAdministrativo: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION",
     areaAdministrativa: "NOTIFICACIONES",
-    solicitante: solMatch ? solMatch[1].trim() : "NO DETECTADO",
-    dir_correo: "VER EN EXCEL",
+    solicitante: contribuyente.toUpperCase(),
+    dir_correo: "VER PDF",
     ciudad: "CALI",
-    fechaActo: fMatch ? `${fMatch[1].padStart(2,'0')}/${meses[fMatch[2].toLowerCase()] || '01'}/${fMatch[3]}` : "N/A",
-    identificacion: idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D",
-    funcionario: t.match(/(?:PROYECTÓ|PROYECTO|ELABORÓ|ELABORO)[:\s]+([A-Z\sÑÁÉÍÓÚ.]{5,50})/i)?.[1] || "NO DETECTADO",
-    observaciones: t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/D",
+    fechaActo: fecha,
+    identificacion: cedula,
+    funcionario: proyMatch ? proyMatch[1].trim().toUpperCase() : "SUBGERENCIA",
+    observaciones: (t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/D"),
     tipoDocumento: tU.includes("TRASLADO") ? "TRASLADO" : "RESOLUCION"
   };
 }
 
-btnEnviar.onclick = async () => {
-  updateStatus("🚀 Enviando a Google Sheets...", "#fff3cd", "#856404");
-  btnEnviar.disabled = true;
+document.getElementById('btn-enviar').onclick = async () => {
+  updateStatus("🚀 Enviando datos a Google Sheets...", "#fff3cd", "#856404");
   try {
-    await fetch(WEB_APP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify({ registros: dataFinal })
-    });
-    updateStatus("🎉 ¡DATOS ENVIADOS CON ÉXITO!", "#d4edda", "#155724");
-    btnEnviar.style.display = "none";
+    await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: dataFinal }) });
+    updateStatus("🎉 ¡GUARDADO EXITOSO! Revisa tu Excel.", "#d4edda", "#155724");
+    document.getElementById('btn-enviar').style.display = "none";
   } catch (e) {
-    updateStatus("❌ Error al enviar.", "#f8d7da", "#721c24");
-    btnEnviar.disabled = false;
+    updateStatus("❌ Error al enviar. Verifica tu conexión.", "#f8d7da", "#721c24");
   }
 };
 
 function updateStatus(msg, bg, color) {
-  statusMsg.style.display = "block";
-  statusMsg.innerText = msg;
-  statusMsg.style.background = bg;
-  statusMsg.style.color = color;
+  const s = document.getElementById('status-msg');
+  s.style.display = "block"; s.innerText = msg; s.style.background = bg; s.style.color = color;
 }
 </script>
 </body>
