@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Full Recuperada</title>
+    <title>Sistema Gobernación — Versión L: Dirección y Correo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .highlight { background-color: #fce8e6; font-weight: 700; color: #d93025; }
+        .col-l-focus { background-color: #e8f0fe; font-weight: bold; color: #1a73e8; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: 16 COLUMNAS RECUPERADAS</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: DIRECCIÓN Y CORREO</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>Corregido: Recuperada la Identificación (Columna J)</p>
+        <p>Corregido: Extracción forzada de Dirección y Correo en minúsculas</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO TODO EL DOCUMENTO... ESPERE POR FAVOR...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO... BUSCANDO DIRECCIÓN Y CORREO... ESPERE UN MOMENTO...</div>
 
     <div class="table-wrapper">
         <table>
@@ -40,9 +40,9 @@
                     <th>SADE DE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:000">No. PLANILLA</th>
                     <th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th><th>ÁREA ADMINISTRATIVA...</th>
                     <th>No. ACTO ADMINISTRATIVO Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
-                    <th style="background:#e8f0fe; color:#1a73e8;">No. DE IDENTIFICACION</th>
-                    <th>CONTRIBUYENTE</th><th>DIRECCION Y CORREO...</th><th>CIUDAD</th>
-                    <th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
+                    <th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th>
+                    <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
+                    <th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
                 </tr>
             </thead>
             <tbody id="resultado"></tbody>
@@ -82,29 +82,40 @@ async function procesarOCR(file) {
     renderRow(info);
 }
 
+function formatearCedula(num) {
+    if (!num || num === "N/A") return "N/A";
+    let soloNumeros = num.toString().replace(/\D/g, '');
+    return soloNumeros.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 function extraerTodoOCR(t) {
     const texto = t.replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // --- COLUMNA A: SADE INGRESO ---
+    // --- SADE INGRESO (A) ---
     const matchRad = texto.match(/(?:RADICACION|RADICAC|RAD1C|RADIC)[:\s]+(\d{10})/i);
     const colA = matchRad ? matchRad[1] : (texto.match(/\b\d{10}\b/g)?.[1] || "N/A");
 
-    // --- COLUMNA J: IDENTIFICACIÓN (MEJORADO) ---
-    // Busca C.C, Identificación, NIT o simplemente un número largo después de un título
+    // --- IDENTIFICACIÓN (J) ---
     const idRegex = /(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT|IDENTIFICA)[:\s]+([\d.]{6,15})/i;
     const matchId = texto.match(idRegex);
-    const colJ = matchId ? matchId[1].replace(/\./g, '') : "N/A";
+    const colJ = formatearCedula(matchId ? matchId[1].trim() : "N/A");
 
-    // --- COLUMNA K: NOMBRE ---
+    // --- NOMBRE (K) ---
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
-    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|C\.C|NIT|DIRECCION/i)[0].trim();
+    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT|DIRECCION/i)[0].trim();
 
-    // --- COLUMNA L: DIRECCIÓN Y CORREO ---
-    const dirMatch = texto.match(/DIRECCION[:\s]+(.*?)(?=CORREO|TEL|IDENT|$)/i);
+    // --- DIRECCIÓN Y CORREO (L) - REFORZADO ---
+    // Buscamos la dirección ignorando errores comunes de OCR en la palabra "DIRECCION"
+    const dirMatch = texto.match(/(?:DIRECCI[OÓ]N|DIRECC|D1RECC|DIRECCION)\s*-\s*MPIO-DTPO[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENT|$)/i) 
+                  || texto.match(/(?:DIRECCI[OÓ]N|DIRECC)[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENT|$)/i);
+    
     const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const email = correoMatch ? correoMatch[0].toLowerCase() : 'N/A';
+    
+    const direccion = dirMatch ? dirMatch[1].trim() : "NO DETECTADA";
+    const email = correoMatch ? correoMatch[0].toLowerCase() : "n/a";
+    const colL = `${direccion} / ${email}`;
 
     // --- OTROS ---
     const sades = texto.match(/\b\d{10}\b/g) || [];
@@ -120,9 +131,9 @@ function extraerTodoOCR(t) {
         colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
         colH: extraerFechaOCR(texto),
         colI: texto.match(/PLACA[:\s]+([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        colJ: colJ, // Aquí está tu identificación
+        colJ: colJ,
         colK: nombre,
-        colL: `${dirMatch ? dirMatch[1].trim() : 'N/A'} / ${email}`,
+        colL: colL,
         colM: "CALI- VALLE",
         colN: "CORREO ELECTRONICO",
         colO: hoy,
@@ -139,17 +150,17 @@ function extraerFechaOCR(texto) {
 function renderRow(i) {
     document.getElementById('resultado').innerHTML += `
         <tr>
-            <td class="highlight">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
+            <td style="background:#fce8e6; font-weight:bold;">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
-            <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td>${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colH}</td><td>${i.colI}</td><td>${i.colJ}</td><td>${i.colK}</td>
+            <td class="col-l-focus">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO! IDENTIFICACIÓN Y SADE LISTOS.");
+        alert("🎉 ¡ENVIADO CON ÉXITO! Columna L corregida.");
     } catch (e) { alert("❌ Error"); }
 };
 </script>
