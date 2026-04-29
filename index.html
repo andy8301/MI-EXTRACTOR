@@ -23,15 +23,15 @@
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PRECISIÓN TOTAL</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PRECISIÓN TOTAL L</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dirección/Correo) CORREGIDO</p>
+        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dirección / Correo) REPARADO</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO... BUSCANDO DIRECCIÓN Y CORREO... ESPERE UN MOMENTO...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO... CAPTURANDO DIRECCIÓN Y CORREO... ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -40,7 +40,8 @@
                     <th>SADE DE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:000">No. PLANILLA</th>
                     <th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th><th>ÁREA ADMINISTRATIVA...</th>
                     <th>No. ACTO ADMINISTRATIVO Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
-                    <th>No. DE IDENTIFICACION</th><th>CONTRIBUYENTE</th>
+                    <th style="background:#e8f0fe; color:#1a73e8;">No. DE IDENTIFICACION</th>
+                    <th>CONTRIBUYENTE</th>
                     <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
                     <th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
                 </tr>
@@ -89,6 +90,7 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
+    // Normalización de texto: quitamos saltos de línea y espacios triples
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
@@ -105,16 +107,18 @@ function extraerTodoOCR(t) {
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|C\.C|NIT|CC|DIRECCION/i)[0].trim();
 
-    // --- L: DIRECCIÓN Y CORREO (CORREGIDO) ---
-    // Buscamos dirección entre "DIRECCIÓN" y "CORREO" usando regex flexible para los guiones
-    const regexDir = /(?:DIRECCI[OÓ]N\s*[–-]\s*MPIO\s*[–-]\s*DTPO|DIRECCI[OÓ]N)[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENTIFICACI|$)/i;
-    const matchDir = texto.match(regexDir);
-    const direccion = matchDir ? matchDir[1].trim() : "N/A";
+    // --- L: DIRECCIÓN Y CORREO (LÓGICA REPARADA) ---
+    // 1. Buscamos la dirección: Todo lo que esté después de "DIRECCIÓN..." hasta "CORREO"
+    const regexDireccion = /(?:DIRECCI[OÓ]N|DIRECC)\s*[\–\-]\s*MPIO\s*[\–\-]\s*DTPO[:\s]+(.*?)(?=CORREO|TELEFONO|IDENT|$)/i;
+    const matchDireccion = texto.match(regexDireccion);
+    let direccionReal = matchDireccion ? matchDireccion[1].trim() : "N/A";
 
-    // Buscamos correo independientemente
-    const matchCorreo = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const email = matchCorreo ? matchCorreo[0].toLowerCase() : "n/a";
-    const colL = `${direccion} / ${email}`;
+    // 2. Buscamos el correo: Todo lo que esté después de "CORREO ELECTRÓNICO" o que tenga un @
+    const matchCorreoEtiqueta = texto.match(/(?:CORREO ELECTRONICO|CORREO ELECTR[OÓ]NICO)[:\s]+([^\s]+@[^\s]+\.[^\s]+)/i);
+    const matchCorreoGral = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const emailReal = (matchCorreoEtiqueta ? matchCorreoEtiqueta[1] : (matchCorreoGral ? matchCorreoGral[0] : "n/a")).toLowerCase();
+
+    const colL = `${direccionReal} / ${emailReal}`;
 
     // OTROS
     const sades = texto.match(/\b\d{10}\b/g) || [];
@@ -159,8 +163,8 @@ function renderRow(i) {
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡TODO PERFECTO! Datos enviados al Excel.");
-    } catch (e) { alert("❌ Error"); }
+        alert("🎉 ¡TODO PERFECTO! Columna L capturada correctamente.");
+    } catch (e) { alert("❌ Error de envío."); }
 };
 </script>
 </body>
