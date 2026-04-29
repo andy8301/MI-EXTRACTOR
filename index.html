@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Reparación de Símbolos</title>
+    <title>Sistema Gobernación — Versión Recuperada y Corregida</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .fix-text { color: #d93025; font-weight: bold; }
+        .resaltado { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: CORRECCIÓN DE @ Y DIRECCIÓN</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: VERSIÓN RECONSTRUIDA</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>A (Vacio) | J (ID Puntos) | K (Nombre Limpio) | L (Dirección y Correo REALES)</p>
+        <p>A (Vacio) | J (ID con puntos) | K (Nombre Limpio) | L (CALLE... / correo@)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ LEYENDO CASILLA POR CASILLA... ESTO TARDA UN POCO...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO... CORRIGIENDO SÍMBOLOS... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -72,7 +72,7 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        const viewport = page.getViewport({scale: 3.5}); // Escala muy alta para ver bien el @
+        const viewport = page.getViewport({scale: 3.0}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -93,41 +93,36 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto quitando saltos de línea para que todo sea una sola línea de búsqueda
+    // Normalizamos el texto: una sola línea para evitar saltos locos
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN
+    // J: IDENTIFICACIÓN (Cédula)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: NOMBRE LIMPIO
+    // K: CONTRIBUYENTE (Nombre)
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (REPARACIÓN DE SÍMBOLOS)
-    // Buscamos el correo primero y arreglamos el @ que el OCR confunde con (Q, (G, Q, etc.
+    // L: DIRECCIÓN Y CORREO (Lógica de rescate)
+    // 1. Limpieza de correo: corregimos (Q, (G por @
+    let rawEmail = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
     let email = "n/a";
-    const emailMangled = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QG]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    
-    if (emailMangled) {
-        email = emailMangled[0].replace(/\s+/g, '').replace(/[\(@QG]+/g, '@').toLowerCase();
+    if (rawEmail) {
+        email = rawEmail[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
     }
 
-    // Buscamos la dirección: Tomamos todo lo que está entre DIRECCION y CORREO
+    // 2. Dirección: Todo lo que esté después de MPIO/DTPO hasta el correo
     let direccion = "N/A";
-    const inicioD = texto.toUpperCase().indexOf("DIRECCI");
-    const finD = texto.toUpperCase().indexOf("CORREO");
+    let posIni = texto.toUpperCase().indexOf("DTPO");
+    if (posIni === -1) posIni = texto.toUpperCase().indexOf("MPIO");
+    let posFin = texto.toUpperCase().indexOf("CORREO");
 
-    if (inicioD !== -1 && finD !== -1) {
-        let bloque = texto.substring(inicioD, finD);
-        direccion = bloque
-            .replace(/DIRECCI[OÓ]N/gi, "")
-            .replace(/MPIO/gi, "")
-            .replace(/DTPO/gi, "")
-            .replace(/DTP0/gi, "")
+    if (posIni !== -1 && posFin !== -1) {
+        direccion = texto.substring(posIni + 4, posFin)
             .replace(/[–—\-:;]/g, " ")
             .replace(/\s+/g, " ")
             .trim();
@@ -159,15 +154,15 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="fix-text">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="resaltado">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO CON ÉXITO!");
-    } catch (e) { alert("Error al enviar."); }
+        alert("🎉 ¡ENVIADO!");
+    } catch (e) { alert("Error"); }
 };
 </script>
 </body>
