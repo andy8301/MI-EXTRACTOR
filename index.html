@@ -3,58 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Extractor Pro - Gobernación del Valle</title>
+<title>Extractor de Planillas Pro — Gobernación</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-  :root { --azul: #1a73e8; --azul-oscuro: #0d47a1; --bg: #f1f3f4; }
-  body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-  .card { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-  header { text-align: center; border-bottom: 2px solid #e8f0fe; margin-bottom: 20px; padding-bottom: 10px; }
-  header h1 { color: var(--azul); margin: 0; font-size: 24px; }
-  .drop-zone { border: 2px dashed var(--azul); padding: 40px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; }
-  .status { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; font-weight: 600; display: none; }
-  .table-wrapper { margin-top: 20px; border: 1px solid #ddd; border-radius: 8px; overflow-x: auto; display: none; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { background: var(--azul); color: white; padding: 12px; text-align: left; }
-  td { padding: 10px; border-bottom: 1px solid #eee; }
-  .btn { width: 100%; padding: 18px; margin-top: 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul); color: white; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    :root { --azul: #1a73e8; --azul-oscuro: #0d47a1; --bg: #f1f3f4; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #202124; }
+    .card { max-width: 1400px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    header { text-align: center; border-bottom: 2px solid #e8f0fe; margin-bottom: 20px; padding-bottom: 10px; }
+    header h1 { color: var(--azul); margin: 0; font-size: 24px; }
+    .drop-zone { border: 2px dashed var(--azul); padding: 40px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; transition: 0.3s; }
+    .drop-zone:hover { background: #d2e3fc; }
+    .status { padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; font-weight: 600; display: none; }
+    .table-wrapper { margin-top: 20px; border: 1px solid #ddd; border-radius: 8px; overflow-x: auto; display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+    th { background: var(--azul); color: white; padding: 10px; text-align: left; text-transform: uppercase; }
+    td { padding: 8px; border-bottom: 1px solid #eee; }
+    .col-manual { background-color: #fff9c4; font-weight: bold; color: #856404; text-align: center; }
+    .btn { width: 100%; padding: 18px; margin-top: 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul); color: white; transition: 0.2s; }
+    .btn:hover { background: var(--azul-oscuro); }
 </style>
 </head>
 <body>
 
 <div class="card">
-  <header>
-    <h1>EXTRACTOR DE PLANILLAS - GOBERNACIÓN</h1>
-    <p>Paleta Azul Institucional — Extracción de Alta Precisión</p>
-  </header>
-  
-  <div class="drop-zone" id="drop-zone">
-    <strong>📂 ARRASTRE LOS PDF AQUÍ O HAGA CLIC</strong>
-    <input type="file" id="file-input" multiple accept="application/pdf" style="display:none">
-  </div>
+    <header>
+        <h1>SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h1>
+        <p>Configuración: 16 Columnas (C: Ingreso Manual)</p>
+    </header>
+    
+    <div class="drop-zone" id="drop-zone">
+        <strong>📂 ARRASTRE LOS PDF AQUÍ O HAGA CLIC</strong>
+        <p>Lote de resoluciones — Funcionaria: Yohana Estrada Duque</p>
+        <input type="file" id="file-input" multiple accept="application/pdf" style="display:none">
+    </div>
 
-  <div id="status" class="status"></div>
+    <div id="status" class="status"></div>
 
-  <div id="result-area" class="table-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>SADE INGRESO</th>
-          <th>ACTO Y SADE</th>
-          <th>CONTRIBUYENTE</th>
-          <th>IDENTIFICACIÓN</th>
-          <th>EXPEDIENTE</th>
-        </tr>
-      </thead>
-      <tbody id="tabla-body"></tbody>
-    </table>
-    <button class="btn" id="btn-enviar">🚀 GUARDAR EN GOOGLE SHEETS</button>
-  </div>
+    <div id="result-area" class="table-wrapper">
+        <table id="tabla-datos">
+            <thead>
+                <tr>
+                    <th>A: SADE ING.</th>
+                    <th>B: IT.</th>
+                    <th style="background:#fbc02d">C: MANUAL</th>
+                    <th>D: EXPEDIENTE</th>
+                    <th>E: ACTO</th>
+                    <th>F: AREA</th>
+                    <th>G: ACTO Y SADE</th>
+                    <th>H: FECHA ACTO</th>
+                    <th>I: PLACA</th>
+                    <th>J: IDENTIFICACIÓN</th>
+                    <th>K: CONTRIBUYENTE</th>
+                    <th>L: DIR / CORREO</th>
+                    <th>M: CIUDAD</th>
+                    <th>N: OBSERV.</th>
+                    <th>O: F. PLANILLA</th>
+                    <th>P: FUNCIONARIO</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body"></tbody>
+        </table>
+        <button class="btn" id="btn-enviar">🚀 ENVIAR A GOOGLE SHEETS</button>
+    </div>
 </div>
 
 <script>
+// URL de tu Apps Script
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 let datosFinales = [];
@@ -65,82 +82,114 @@ dropZone.onclick = () => fileInput.click();
 fileInput.onchange = (e) => procesar(e.target.files);
 
 async function procesar(files) {
-  datosFinales = [];
-  document.getElementById('tabla-body').innerHTML = "";
-  msg("⏳ Extrayendo información...", "#e8f0fe", "#1a73e8");
+    datosFinales = [];
+    document.getElementById('tabla-body').innerHTML = "";
+    msg("⏳ Procesando " + files.length + " archivos...", "#e8f0fe", "#1a73e8");
 
-  for (let file of files) {
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
-    let texto = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      // Unimos con espacio simple para evitar saltos de línea que rompen la búsqueda
-      texto += content.items.map(s => s.str).join(' ') + " ";
+    let contador = 1;
+    for (let file of files) {
+        try {
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+            let texto = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                texto += content.items.map(s => s.str).join(' ') + " ";
+            }
+            
+            const info = extraerTodo(texto, contador);
+            datosFinales.push(info);
+            
+            document.getElementById('tabla-body').innerHTML += `
+                <tr>
+                    <td>${info.colA}</td>
+                    <td>${info.colB}</td>
+                    <td class="col-manual">---</td>
+                    <td>${info.colD}</td>
+                    <td>${info.colE}</td>
+                    <td>${info.colF}</td>
+                    <td>${info.colG}</td>
+                    <td>${info.colH}</td>
+                    <td>${info.colI}</td>
+                    <td>${info.colJ}</td>
+                    <td>${info.colK}</td>
+                    <td>${info.colL}</td>
+                    <td>${info.colM}</td>
+                    <td>${info.colN}</td>
+                    <td>${info.colO}</td>
+                    <td>${info.colP}</td>
+                </tr>`;
+            contador++;
+        } catch (e) { console.error(e); }
     }
-    const info = limpiarYExtraer(texto);
-    datosFinales.push(info);
-    
-    document.getElementById('tabla-body').innerHTML += `<tr><td>${info.sadeIngreso}</td><td>${info.actoYSade}</td><td>${info.solicitante}</td><td>${info.identificacion}</td><td>${info.expediente}</td></tr>`;
-  }
-  document.getElementById('result-area').style.display = "block";
-  msg(`✅ ${files.length} archivos procesados.`, "#e6ffed", "#1e8e3e");
+    document.getElementById('result-area').style.display = "block";
+    msg(`✅ ${files.length} archivos procesados.`, "#e6ffed", "#1e8e3e");
 }
 
-function limpiarYExtraer(t) {
-  // Limpiamos espacios dobles y raros
-  const texto = t.replace(/\s+/g, ' ');
+function extraerTodo(t, it) {
+    const texto = t.replace(/\s+/g, ' ');
+    const hoy = new Date().toLocaleDateString('es-ES');
 
-  // 1. SADE INGRESO (Busca el primer número de 10 dígitos)
-  const sade = texto.match(/\b\d{10}\b/)?.[0] || "N/A";
+    // A: SADE INGRESO (10 dígitos cuadro abajo)
+    const colA = texto.match(/RADICACIÓN:?\s*(\d{10})\b/i)?.[1] || "N/A";
+    
+    // B: IT
+    const colB = it;
 
-  // 2. RESOLUCION (Los 4 después del guion)
-  const resMatch = texto.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i);
-  const nRes = resMatch ? resMatch[1] : "0000";
+    // D: EXPEDIENTE
+    const colD = texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i)?.[1] || "N/A";
 
-  // 3. SOLICITANTE (Busca lo que hay justo entre "SOLICITANTE:" e "IDENTIFICACIÓN:")
-  const solMatch = texto.match(/SOLICITANTE:?\s*([\w\sÑÁÉÍÓÚ.]+?)\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
-  const contribuyente = solMatch ? solMatch[1].trim() : "NO DETECTADO";
+    // E: ACTO
+    const colE = texto.toUpperCase().includes("TRASLADO") ? "TRASLADO" : "RESOLUCION";
 
-  // 4. IDENTIFICACIÓN (Solo números y puntos después de la etiqueta)
-  const idMatch = texto.match(/(?:IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
-  const cedula = idMatch ? idMatch[1].replace(/\./g, '').trim() : "N/D";
+    // G: ACTO Y SADE
+    const resNum = texto.match(/(?:RESOLUCIÓN|RESOLUCION|TRASLADO)\s*NO\.?\s*[\d.]+-(\d{4})/i)?.[1] || "0000";
+    const sadeEncabezado = texto.match(/RADICACIÓN:?\s*(\d{10})\b/)?.[1] || "0000000000";
+    const colG = `${colE} ${resNum} - SADE ${sadeEncabezado}`;
 
-  // 5. EXPEDIENTE
-  const expMatch = texto.match(/(?:EXPEDIENTE|EXP)[:\s]+([\d.-]{10,})/i);
+    // H: FECHA ACTO
+    const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
+    const fM = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
+    const colH = fM ? `${fM[1].padStart(2,'0')}/${meses[fM[2].toUpperCase()] || '01'}/${fM[3]}` : "N/A";
 
-  // 6. FECHA (DD de MES del AAAA)
-  const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
-  const fM = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
-  const fecha = fM ? `${fM[1].padStart(2,'0')}/${meses[fM[2].toUpperCase()] || '01'}/${fM[3]}` : "N/A";
+    // I: PLACA
+    const colI = texto.match(/PLACA:?\s*([A-Z0-9]{5,7})/i)?.[1] || "N/A";
 
-  return {
-    sadeIngreso: sade,
-    actoYSade: `RESOLUCION ${nRes} - SADE ${sade}`,
-    expediente: expMatch ? expMatch[1].trim() : "N/A",
-    actoAdministrativo: texto.toUpperCase().includes("TRASLADO") ? "TRASLADO" : "RESOLUCION",
-    areaAdministrativa: "NOTIFICACIONES",
-    solicitante: contribuyente.toUpperCase(),
-    dir_correo: "VER PDF",
-    ciudad: "CALI",
-    fechaActo: fecha,
-    identificacion: cedula,
-    funcionario: "SUBGERENTE",
-    observaciones: (texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/D"),
-    tipoDocumento: texto.toUpperCase().includes("TRASLADO") ? "TRASLADO" : "RESOLUCION"
-  };
+    // J: IDENTIFICACIÓN
+    const colJ = texto.match(/IDENTIFICACIÓN:?\s*([\d.]{5,15})/i)?.[1] || "N/A";
+
+    // K: CONTRIBUYENTE
+    const solMatch = texto.match(/SOLICITANTE:?\s*([\w\sÑÁÉÍÓÚ.]+?)\s*(?=IDENTIFICACIÓN|IDENTIFICACION|C\.C|NIT)/i);
+    const colK = solMatch ? solMatch[1].trim().toUpperCase() : "NO DETECTADO";
+
+    // L: DIRECCIÓN / CORREO
+    const dirMatch = texto.match(/DIRECCIÓN - MPIO-DTPO:?\s*([\w\sÑÁÉÍÓÚ.#,-]+?)\s*(?=CORREO|TELEFONOS)/i);
+    const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const colL = `${dirMatch ? dirMatch[1].trim() : 'N/A'} / ${correoMatch ? correoMatch[0].toLowerCase() : 'N/A'}`;
+
+    // M: CIUDAD (Municipio-Departamento)
+    const colM = dirMatch ? (dirMatch[1].match(/[A-Z\s]+-\s*[A-Z\s]+$/i)?.[0] || "CALI- VALLE DEL CAUCA") : "N/A";
+
+    // P: FUNCIONARIO
+    const colP = "YOHANA ESTRADA DUQUE";
+
+    return {
+        colA, colB, colC: "", colD, colE, colF: "NOTIFICACIONES", colG, colH, colI, colJ, colK, colL, colM, colN: "CORREO ELECTRONICO", colO: hoy, colP
+    };
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
-  msg("🚀 Enviando a Google Sheets...", "#fff3cd", "#856404");
-  await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-  msg("🎉 ¡DATOS GUARDADOS!", "#d4edda", "#155724");
+    msg("🚀 Enviando a Google Sheets...", "#fff3cd", "#856404");
+    try {
+        await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
+        msg("🎉 ¡GUARDADO EXITOSO!", "#d4edda", "#155724");
+    } catch (e) { msg("❌ Error al enviar.", "#f8d7da", "#721c24"); }
 };
 
 function msg(m, b, c) {
-  const s = document.getElementById('status');
-  s.style.display = "block"; s.innerText = m; s.style.background = b; s.style.color = c;
+    const s = document.getElementById('status');
+    s.style.display = "block"; s.innerText = m; s.style.background = b; s.style.color = c;
 }
 </script>
 </body>
