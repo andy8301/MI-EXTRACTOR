@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Estable y Cruda</title>
+    <title>Sistema Gobernación — Versión Bloque Crudo (El que funcionó)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .raw-data { color: #d93025; font-weight: bold; }
+        .raw-data { color: #d93025; font-weight: 800; background: #fff4f2; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: VERSIÓN ESTABLE</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: BARRIDO CRUDO</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>A (Vacío) | J (Puntos) | K (Limpio) | L (Dato Crudo para Edición Manual)</p>
+        <strong>📂 CLIC AQUÍ PARA SUBIR EL PDF</strong>
+        <p>A (Vacio) | J (Puntos) | K (Limpio) | L (Captura de bloque completo crudo)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO A MÁXIMA RESOLUCIÓN... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -72,8 +72,8 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        // Escala estable de 2.5
-        const viewport = page.getViewport({scale: 2.5}); 
+        // ESCALA 4.0: La clave para que lea todos los números de la calle
+        const viewport = page.getViewport({scale: 4.0}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -94,11 +94,9 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
+    // Normalizamos para no romper la lectura por saltos de línea
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
-
-    // A: SADE (Vacío)
-    const colA = "";
 
     // J: IDENTIFICACIÓN (Cédula con puntos)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
@@ -110,32 +108,41 @@ function extraerTodoOCR(t) {
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (VERSIÓN SIMPLE Y CRUDA)
+    // L: DIRECCIÓN Y CORREO (CAPTURA DE BLOQUE EXACTO)
     
-    // Correo
+    // Correo: Arregla los símbolos extraños del OCR para salvar el @
+    let email = "n/a";
     let emailMatch = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || 
                      texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    const email = emailMatch ? emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase() : "n/a";
+    if (emailMatch) {
+        email = emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
+    }
 
-    // Dirección: Tomamos exactamente lo que lee después de DTPO o DIRECCION hasta el CORREO
+    // Dirección: Tomamos TODO desde "DIRECCI" hasta "CORREO"
     let direccion = "N/A";
-    let dirMatch = texto.match(/(?:DTPO|MPIO|DTP0|MP10)[:\s\–\-]+(.*?)(?=CORREO|TEL[EÉ]FONO|$)/i);
-    if (!dirMatch) {
-        dirMatch = texto.match(/DIRECCI[OÓ]N[:\s\–\-]+(.*?)(?=CORREO|TEL[EÉ]FONO|$)/i);
-    }
-    
-    if (dirMatch) {
-        direccion = dirMatch[1].trim();
-        // Solo limpiamos los dos puntos o guiones que quedan sueltos al inicio
-        direccion = direccion.replace(/^[:\s\–\-]+/, '');
+    const posStart = texto.toUpperCase().indexOf("DIRECCI");
+    const posEnd = texto.toUpperCase().indexOf("CORREO");
+
+    if (posStart !== -1 && posEnd !== -1 && posEnd > posStart) {
+        let bloque = texto.substring(posStart, posEnd);
+        
+        // Solo borramos las etiquetas. Todo lo demás se queda intacto (la 'A', los números, los espacios)
+        direccion = bloque
+            .replace(/DIRECCI[OÓ]N/gi, "")
+            .replace(/MPIO/gi, "")
+            .replace(/DTPO/gi, "")
+            .replace(/DTP0/gi, "")
+            .replace(/MP10/gi, "")
+            .replace(/[–—:;]/g, " ") // Quitamos guiones decorativos y puntos del formulario
+            .replace(/\s+/g, " ") // Unificamos los espacios
+            .trim();
     }
 
-    // Otros datos...
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
     return {
-        colA: colA, colB: datosFinales.length + 1, colC: "---",
+        colA: "", colB: datosFinales.length + 1, colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
         colE: "RESOLUCION", colF: "NOTIFICACIONES",
         colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
@@ -164,7 +171,7 @@ function renderRow(i) {
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡LISTO! Todo enviado.");
+        alert("🎉 ¡LISTO! Versión estable enviada.");
     } catch (e) { alert("Error"); }
 };
 </script>
