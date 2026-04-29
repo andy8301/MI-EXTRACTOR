@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Extracción Pro</title>
+    <title>Sistema Gobernación — Versión Final Corregida</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -18,20 +18,21 @@
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
         .id-text { color: #1a73e8; font-weight: bold; }
+        .dir-text { color: #d93025; font-weight: bold; font-size: 10px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: PASO FINAL DIRECCIÓN/CORREO</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dir/Correo) arreglado</p>
+        <p>A (Sade) vacío | J (ID) con puntos | K (Nombre) limpio | L (Dir/Correo) FORZADO</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO DOCUMENTO... POR FAVOR ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO DIRECCIÓN Y CORREO... ESTO TOMA UNOS SEGUNDOS...</div>
 
     <div class="table-wrapper">
         <table>
@@ -49,7 +50,7 @@
         </table>
     </div>
 
-    <button class="btn" id="btn-enviar">🚀 ENVIAR LAS 16 COLUMNAS AL EXCEL</button>
+    <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
 </div>
 
 <script>
@@ -82,7 +83,6 @@ async function procesarOCR(file) {
     renderRow(info);
 }
 
-// Función para poner puntos a los miles
 function formatearMiles(num) {
     if (!num || num === "N/A") return "N/A";
     let soloNumeros = num.toString().replace(/\D/g, '');
@@ -90,38 +90,44 @@ function formatearMiles(num) {
 }
 
 function extraerTodoOCR(t) {
-    const texto = t.replace(/\s+/g, ' ');
+    // Normalizamos el texto quitando saltos de línea y espacios triples
+    const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // A: SADE DE INGRESO (Vacío por solicitud)
-    const colA = "";
-
-    // J: IDENTIFICACIÓN (Con puntos)
-    const idRegex = /(?:IDENTIFICACION|C\.C|NIT|CC|CEDULA)[:\s]+([\d.]{6,15})/i;
+    // J: IDENTIFICACIÓN
+    const idRegex = /(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT|IDENTIFICA)[:\s]+([\d.]{6,15})/i;
     const matchId = texto.match(idRegex);
-    const idCapturada = matchId ? matchId[1].trim() : "N/A";
-    const colJ = formatearMiles(idCapturada);
+    const colJ = formatearMiles(matchId ? matchId[1].trim() : "N/A");
 
-    // K: CONTRIBUYENTE (Limpiar "identificacion")
+    // K: CONTRIBUYENTE
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
-    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|IDENTIFICA|C\.C|NIT|CC|DIRECCION/i)[0].trim();
+    nombre = nombre.split(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT|DIRECCION/i)[0].trim();
 
-    // L: DIRECCIÓN Y CORREO (Mejorado)
-    const regexDir = /(?:DIRECCI[OÓ]N|DIRECC|D1RECC|DIR)\s*-?\s*MPIO-DTPO[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENT|$)/i;
-    const dirMatch = texto.match(regexDir);
+    // L: DIRECCIÓN Y CORREO (Búsqueda reforzada)
+    // Buscamos el correo en todo el texto primero
     const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    
-    const direccion = dirMatch ? dirMatch[1].trim() : "NO DETECTADA";
     const email = correoMatch ? correoMatch[0].toLowerCase() : "n/a";
+
+    // Buscamos la dirección entre la palabra DIRECCION y la palabra CORREO o TELEFONO
+    const regexDir = /(?:DIRECCI[OÓ]N|D1RECC|DIR|DIRECC)\s*-\s*MPIO-DTPO[:\s]+(.*?)(?=CORREO|TEL[EÉ]FONO|IDENT|$)/i;
+    const dirMatch = texto.match(regexDir);
+    let direccion = dirMatch ? dirMatch[1].trim() : "N/A";
+    
+    // Si la dirección sigue siendo N/A, intentamos una búsqueda más abierta
+    if (direccion === "N/A") {
+        const fallbackDir = texto.match(/(?:DIRECCI[OÓ]N|DIRECC)[:\s]+(.*?)(?=CORREO|TEL|$)/i);
+        direccion = fallbackDir ? fallbackDir[1].trim() : "N/A";
+    }
+
     const colL = `${direccion} / ${email}`;
 
-    // OTROS
+    // OTROS DATOS
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
     return {
-        colA: colA,
+        colA: "", // SADE DE INGRESO VACÍO
         colB: datosFinales.length + 1,
         colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
@@ -149,17 +155,17 @@ function extraerFechaOCR(texto) {
 function renderRow(i) {
     document.getElementById('resultado').innerHTML += `
         <tr>
-            <td style="background:#eee;">${i.colA}</td><td>${i.colB}</td><td style="text-align:center">---</td>
+            <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td class="id-text">${i.colJ}</td>
-            <td>${i.colK}</td><td style="color:#1a73e8;">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="dir-text">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO AL EXCEL CON ÉXITO!");
+        alert("🎉 ¡TODO LISTO! Datos enviados al Excel.");
     } catch (e) { alert("❌ Error"); }
 };
 </script>
