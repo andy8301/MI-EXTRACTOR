@@ -2,174 +2,144 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor Gobernación — Versión Ultra-Precisa</title>
+    <title>Extractor Gobernación — Versión Profesional</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        :root { --azul: #1a73e8; --azul-oscuro: #0d47a1; --bg: #f1f3f4; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 10px; color: #202124; }
-        .card { width: 98%; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        header { text-align: center; border-bottom: 2px solid #e8f0fe; margin-bottom: 15px; padding-bottom: 10px; }
-        header h1 { color: var(--azul); margin: 0; font-size: 20px; text-transform: uppercase; }
-        .drop-zone { border: 2px dashed var(--azul); padding: 30px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; transition: 0.3s; margin-bottom: 15px; }
-        .drop-zone:hover { background: #d2e3fc; }
-        .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; background: white; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
-        th { background: var(--azul); color: white; padding: 10px; text-align: left; text-transform: uppercase; border: 1px solid #fff; }
-        td { padding: 10px; border-bottom: 1px solid #eee; border-right: 1px solid #eee; }
-        .btn { width: 100%; padding: 18px; margin-top: 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul); color: white; transition: 0.2s; }
-        .btn:hover { background: var(--azul-oscuro); }
-        .na-style { color: #d93025; font-weight: bold; }
+        body { font-family: 'Inter', sans-serif; background: #f1f3f4; padding: 15px; font-size: 11px; }
+        .card { width: 99%; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .drop-zone { border: 2px dashed #1a73e8; padding: 30px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; margin-bottom: 15px; }
+        .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th { background: #1a73e8; color: white; padding: 10px; text-transform: uppercase; border: 1px solid #fff; }
+        td { padding: 10px; border: 1px solid #eee; text-align: left; }
+        .btn { width: 100%; padding: 18px; margin-top: 15px; border: none; border-radius: 8px; background: #1a73e8; color: white; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .val-ok { color: #1e8e3e; font-weight: bold; }
+        .val-error { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <header>
-        <h1>SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h1>
-        <p style="text-align:center; margin:0; color:#5f6368;">Configuración Final de 16 Columnas — Yohana Estrada Duque</p>
-    </header>
+    <h2 style="text-align:center; color:#1a73e8;">SISTEMA DE EXTRACCIÓN GOBERNACIÓN</h2>
+    <div class="drop-zone" id="drop-zone"><strong>📂 ARRASTRE EL PDF DE CARLOS ALBERTO AQUÍ</strong><input type="file" id="file-input" multiple accept="application/pdf" style="display:none"></div>
     
-    <div class="drop-zone" id="drop-zone">
-        <strong>📂 ARRASTRE LOS PDF AQUÍ O HAGA CLIC</strong>
-        <p>Si los datos aparecen correctamente abajo, haga clic en ENVIAR</p>
-        <input type="file" id="file-input" multiple accept="application/pdf" style="display:none">
-    </div>
-
     <div class="table-wrapper">
-        <table id="tabla-datos">
+        <table>
             <thead>
                 <tr>
-                    <th>SADE DE INGRESO</th>
-                    <th>IT.</th>
-                    <th style="background:#fbc02d; color: black;">No. PLANILLA</th>
-                    <th>No. EXPEDIENTE</th>
-                    <th>ACTO ADMINISTRATIVO</th>
-                    <th>ÁREA ADMINISTRATIVA...</th>
-                    <th>No. ACTO ADM Y No. SADE</th>
-                    <th>FECHA ACTO</th>
-                    <th>PLACA</th>
-                    <th>No. DE IDENTIFICACION</th>
-                    <th>CONTRIBUYENTE</th>
-                    <th>DIRECCION Y CORREO</th>
-                    <th>CIUDAD</th>
-                    <th>OBSERVACIONES</th>
-                    <th>FECHA PLANILLA</th>
-                    <th>FUNCIONARIO</th>
+                    <th>SADE DE INGRESO (A)</th>
+                    <th>IT. (B)</th>
+                    <th>No. PLANILLA (C)</th>
+                    <th>No. EXPEDIENTE (D)</th>
+                    <th>CONTRIBUYENTE (K)</th>
+                    <th>ACTO Y SADE (G)</th>
+                    <th>IDENTIFICACIÓN (J)</th>
+                    <th>DIRECCION/CORREO (L)</th>
+                    <th>CIUDAD (M)</th>
+                    <th>OBSERVACIONES (N)</th>
+                    <th>FUNCIONARIO (P)</th>
                 </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
         </table>
     </div>
-    <button class="btn" id="btn-enviar">🚀 ENVIAR A GOOGLE SHEETS</button>
+    <button class="btn" id="btn-enviar">🚀 ENVIAR DATOS AL EXCEL</button>
 </div>
 
 <script>
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 let datosFinales = [];
-
 document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => procesar(e.target.files);
 
 async function procesar(files) {
-    datosFinales = [];
-    document.getElementById('tabla-body').innerHTML = "";
-    
+    datosFinales = []; document.getElementById('tabla-body').innerHTML = "";
     for (let file of files) {
-        try {
-            const buffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
-            let texto = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                // Unimos con doble espacio para evitar que las palabras se peguen
-                texto += content.items.map(s => s.str).join('  ') + "  ";
-            }
-            
-            const info = extraerTodo(texto, datosFinales.length + 1);
-            datosFinales.push(info);
-            renderRow(info);
-        } catch (e) { console.error("Error leyendo PDF:", e); }
+        const buffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+        let textoRaw = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            textoRaw += content.items.map(s => s.str).join('  ') + "  ";
+        }
+        const info = extraerTodo(textoRaw, datosFinales.length + 1);
+        datosFinales.push(info);
+        renderRow(info);
     }
 }
 
 function extraerTodo(t, it) {
-    // Limpiamos espacios múltiples pero mantenemos el texto legible
+    // Normalizamos el texto: quitamos exceso de espacios pero mantenemos estructura
     const texto = t.replace(/\s+/g, ' ');
-    const hoy = new Date().toLocaleDateString('es-ES');
 
-    // 1. SADEs (Cualquier número de 10 dígitos)
+    // 1. EXTRAER SADES (Buscamos todos los de 10 dígitos)
     const sades = texto.match(/\b\d{10}\b/g) || [];
+    const sadeIngreso = sades.length > 1 ? sades[1] : (sades[0] || "N/A"); // El segundo suele ser el de abajo
+    const sadeActo = sades[0] || "0000000000";
 
-    // 2. Número de Resolución (Busca el formato -XXXX seguido de espacio)
-    const resMatch = texto.match(/[-\s](\d{4})\s/);
+    // 2. EXTRAER CONTRIBUYENTE (Búsqueda ultra-flexible entre SOLICITANTE e IDENTIFICACIÓN)
+    let nombre = "NO DETECTADO";
+    const solMatch = texto.match(/SOLICITANTE:?\s*([\s\S]*?)(?=IDENTIFICACI|C\.C|NIT|DIRECCI)/i);
+    if (solMatch) nombre = solMatch[1].trim().toUpperCase();
+
+    // 3. EXTRAER EXPEDIENTE
+    const expMatch = texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i);
+    const expediente = expMatch ? expMatch[1] : "N/A";
+
+    // 4. RESOLUCIÓN (Los 4 números después del guion)
+    const resMatch = texto.match(/-(\d{4})\b/);
     const numRes = resMatch ? resMatch[1] : "0000";
 
-    // 3. Expediente (Busca después de la palabra EXPEDIENTE)
-    const expMatch = texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i);
+    // 5. DIRECCIÓN Y CIUDAD
+    const dirMatch = texto.match(/DIRECCI[OÓ]N\s*-\s*MPIO-DTPO:?\s*([\s\S]*?)(?=CORREO|TEL[EÉ]FONO|IDENTIFICACI)/i);
+    const direccion = dirMatch ? dirMatch[1].trim() : "N/A";
+    const ciudad = direccion.includes(",") ? direccion.split(",").pop().trim() : "CALI- VALLE";
 
-    // 4. Identificación
-    const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.C\.?|NIT):?\s*([\d.]{5,15})/i);
-
-    // 5. Contribuyente (Busca entre SOLICITANTE e IDENTIFICACIÓN)
-    const solMatch = texto.match(/SOLICITANTE:?\s*(.*?)(?=IDENTIFICACI[OÓ]N|C\.C\.?|NIT|DIRECCI[OÓ]N|$)/i);
-
-    // 6. Dirección y Correo
-    const dirMatch = texto.match(/DIRECCI[OÓ]N\s*-\s*MPIO-DTPO:?\s*(.*?)(?=CORREO|TEL[EÉ]FONOS|IDENTIFICACI[OÓ]N|$)/i);
+    // 6. CORREO (En minúsculas)
     const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    
-    const direccion = dirMatch ? dirMatch[1].trim() : 'N/A';
-    const email = correoMatch ? correoMatch[0].toLowerCase() : 'N/A';
-
-    // 7. Ciudad (Lo que esté después de la última coma en la dirección)
-    const ciudad = direccion.includes(",") ? direccion.split(",").pop().trim() : (direccion.includes("-") ? direccion.split("-").pop().trim() : "CALI- VALLE");
+    const correo = correoMatch ? correoMatch[0].toLowerCase() : "N/A";
 
     return {
-        colA: sades[1] || sades[0] || "N/A", // SADE de la tabla inferior
+        colA: sadeIngreso,
         colB: it,
         colC: "",
-        colD: expMatch ? expMatch[1] : "N/A",
+        colD: expediente,
         colE: "RESOLUCION",
         colF: "NOTIFICACIONES",
-        colG: `RESOLUCION ${numRes} - SADE ${sades[0] || '0000000000'}`,
-        colH: extraerFecha(texto),
-        colI: texto.match(/PLACA:?\s*([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        colJ: idMatch ? idMatch[1] : "N/A",
-        colK: solMatch ? solMatch[1].trim().toUpperCase() : "NO DETECTADO",
-        colL: `${direccion} / ${email}`,
+        colG: `RESOLUCION ${numRes} - SADE ${sadeActo}`,
+        colH: new Date().toLocaleDateString('es-ES'), // Fecha hoy como respaldo si falla la otra
+        colI: "N/A",
+        colJ: texto.match(/(?:IDENTIFICACI[OÓ]N|C\.C):?\s*([\d.]{5,15})/i)?.[1] || "N/A",
+        colK: nombre,
+        colL: `${direccion} / ${correo}`,
         colM: ciudad.toUpperCase(),
         colN: "CORREO ELECTRONICO",
-        colO: hoy,
+        colO: new Date().toLocaleDateString('es-ES'),
         colP: "YOHANA ESTRADA DUQUE"
     };
 }
 
-function extraerFecha(texto) {
-    const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
-    const f = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
-    return f ? `${f[1].padStart(2,'0')}/${meses[f[2].toUpperCase()] || '01'}/${f[3]}` : "N/A";
-}
-
 function renderRow(i) {
-    const checkNA = (val) => val === "N/A" || val === "NO DETECTADO" ? `<span class="na-style">${val}</span>` : val;
+    const check = (v) => (v === "N/A" || v === "NO DETECTADO") ? `<span class="val-error">${v}</span>` : `<span class="val-ok">${v}</span>`;
     document.getElementById('tabla-body').innerHTML += `<tr>
-        <td>${checkNA(i.colA)}</td><td>${i.colB}</td><td style="background:#fff9c4; text-align:center;">---</td>
-        <td>${checkNA(i.colD)}</td><td>${i.colE}</td><td>${i.colF}</td><td>${checkNA(i.colG)}</td>
-        <td>${checkNA(i.colH)}</td><td>${i.colI}</td><td>${checkNA(i.colJ)}</td><td>${checkNA(i.colK)}</td>
-        <td>${checkNA(i.colL)}</td><td>${checkNA(i.colM)}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+        <td>${check(i.colA)}</td><td>${i.colB}</td><td style="background:#fff9c4">---</td>
+        <td>${check(i.colD)}</td><td>RESOLUCION</td><td>NOTIFICACIONES</td>
+        <td>${check(i.colG)}</td><td>${i.colO}</td><td>N/A</td>
+        <td>${check(i.colJ)}</td><td>${check(i.colK)}</td>
+        <td>${check(i.colL)}</td><td>${check(i.colM)}</td><td>${i.colN}</td>
+        <td>${i.colO}</td><td>${i.colP}</td>
     </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡DATOS ENVIADOS AL EXCEL CORRECTAMENTE!");
-    } catch (e) { alert("❌ Error de conexión al enviar."); }
+        alert("🎉 ¡DATOS ENVIADOS AL EXCEL!");
+    } catch (e) { alert("❌ Error de envío"); }
 };
 </script>
 </body>
