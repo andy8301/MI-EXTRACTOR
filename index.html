@@ -2,137 +2,126 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Extractor de Planillas Pro — Gobernación</title>
+    <title>SISTEMA GOBERNACIÓN — MODO VISIÓN IA</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        :root { --azul: #1a73e8; --rojo: #d93025; --verde: #1e8e3e; }
-        body { font-family: 'Inter', sans-serif; background: #f1f3f4; padding: 10px; }
-        .card { width: 98%; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .drop-zone { border: 2px dashed var(--azul); padding: 30px; text-align: center; border-radius: 10px; background: #e8f0fe; cursor: pointer; margin-bottom: 15px; }
-        .table-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
-        th { background: var(--azul); color: white; padding: 10px; text-transform: uppercase; border: 1px solid #fff; }
-        td { padding: 10px; border: 1px solid #eee; }
-        .btn { width: 100%; padding: 18px; margin-top: 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; background: var(--azul); color: white; }
-        .error { color: var(--rojo); font-weight: bold; background: #fce8e6; }
-        .success { color: var(--verde); font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
+        .card { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .drop-zone { border: 3px dashed #1a73e8; padding: 40px; text-align: center; color: #1a73e8; cursor: pointer; background: #e8f0fe; border-radius: 10px; }
+        .loading { display: none; text-align: center; padding: 20px; color: #f29900; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+        th { background: #1a73e8; color: white; padding: 10px; border: 1px solid #ddd; }
+        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        .btn { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <header><h2 style="text-align:center; color:var(--azul);">SISTEMA DE EXTRACCIÓN — PRECISIÓN TOTAL</h2></header>
-    <div class="drop-zone" id="drop-zone"><strong>📂 ARRASTRE LOS PDF AQUÍ</strong><input type="file" id="file-input" multiple accept="application/pdf" style="display:none"></div>
-    <div class="table-wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>SADE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:#000">PLANILLA</th>
-                    <th>EXPEDIENTE</th><th>ACTO ADM.</th><th>ÁREA</th><th>ACTO Y SADE</th>
-                    <th>FECHA ACTO</th><th>PLACA</th><th>IDENTIFICACIÓN</th><th>CONTRIBUYENTE</th>
-                    <th>DIR / CORREO</th><th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-body"></tbody>
-        </table>
+    <h2 style="text-align:center;">🔍 EXTRACTOR CON VISIÓN ARTIFICIAL</h2>
+    <p style="text-align:center; color: #666;">Este modo "lee" el PDF como si fuera una foto. Sea paciente.</p>
+    
+    <div class="drop-zone" id="drop-zone">
+        <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
+        <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
-    <button class="btn" id="btn-enviar">🚀 ENVIAR A GOOGLE SHEETS</button>
+
+    <div id="loading-msg" class="loading">⏳ MI CEREBRO ESTÁ LEYENDO LA IMAGEN... ESPERE...</div>
+
+    <table id="tabla-datos">
+        <thead>
+            <tr>
+                <th>SADE INGRESO (A)</th>
+                <th>EXPEDIENTE (D)</th>
+                <th>ACTO Y SADE (G)</th>
+                <th>IDENTIFICACIÓN (J)</th>
+                <th>CONTRIBUYENTE (K)</th>
+            </tr>
+        </thead>
+        <tbody id="resultado"></tbody>
+    </table>
+
+    <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
 </div>
 
 <script>
-// --- TU URL DE GOOGLE APPS SCRIPT ---
+// URL DE TU GOOGLE SHEETS
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
 let datosFinales = [];
 
-document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
-document.getElementById('file-input').onchange = (e) => procesar(e.target.files);
+dropZone.onclick = () => fileInput.click();
+fileInput.onchange = (e) => procesarConVision(e.target.files[0]);
 
-async function procesar(files) {
-    datosFinales = []; document.getElementById('tabla-body').innerHTML = "";
-    for (let file of files) {
-        try {
-            const buffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
-            let textoRaw = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                textoRaw += content.items.map(s => s.str).join(' ') + " ";
-            }
-            const info = extraerTodo(textoRaw, datosFinales.length + 1);
-            datosFinales.push(info);
-            renderRow(info);
-        } catch (e) { console.error(e); }
-    }
+async function procesarConVision(file) {
+    document.getElementById('loading-msg').style.display = "block";
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+    const page = await pdf.getPage(1); // Leemos la primera página
+    
+    // Convertimos el PDF en una IMAGEN (Canvas) para que el OCR lo pueda ver
+    const viewport = page.getViewport({scale: 2});
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({canvasContext: context, viewport: viewport}).promise;
+
+    // USAMOS TESSERACT (EL MOTOR DE VISIÓN)
+    const { data: { text } } = await Tesseract.recognize(canvas, 'spa', {
+        logger: m => console.log(m)
+    });
+
+    console.log("TEXTO RECONOCIDO:", text);
+    const info = extraerDatos(text);
+    datosFinales = [info];
+    
+    document.getElementById('loading-msg').style.display = "none";
+    document.getElementById('resultado').innerHTML = `
+        <tr>
+            <td>${info.colA}</td>
+            <td>${info.colD}</td>
+            <td>${info.colG}</td>
+            <td>${info.colJ}</td>
+            <td>${info.colK}</td>
+        </tr>
+    `;
 }
 
-function extraerTodo(t, it) {
-    // LIMPIEZA PROFUNDA: Quitamos caracteres extraños y normalizamos espacios
-    const texto = t.replace(/\s+/g, ' ').trim();
-    const hoy = new Date().toLocaleDateString('es-ES');
-
-    // BUSCADORES ULTRA-FLEXIBLES
-    const sades = texto.match(/\d{10}/g) || [];
-    const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.C|NIT):?\s*([\d.]{5,15})/i);
-    const expMatch = texto.match(/EXPEDIENTE:?\s*([\d.-]{5,})/i);
-    const resMatch = texto.match(/[-\s](\d{4})\s/);
+function extraerDatos(t) {
+    const texto = t.replace(/\s+/g, ' ');
     
-    // Captura de Contribuyente (K): Muy flexible entre SOLICITANTE y lo que sigue
-    const solMatch = texto.match(/SOLICITANTE:?\s*(.*?)(?=IDENTIFICACI[OÓ]N|C\.C|NIT|DIRECCI[OÓ]N|CORREO)/i);
-    const contribuyente = solMatch ? solMatch[1].trim().toUpperCase() : "N/A";
+    // SADE DE INGRESO (Buscamos 10 números cerca de la palabra RADICACIÓN)
+    const sades = texto.match(/\d{10}/g) || [];
+    
+    // CONTRIBUYENTE (Buscamos después de SOLICITANTE)
+    const nombreMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,50})/i);
+    
+    // IDENTIFICACIÓN
+    const idMatch = texto.match(/(?:IDENTIFICACI|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
 
-    // Dirección y Correo (L):
-    const dirMatch = texto.match(/DIRECCI[OÓ]N\s*-\s*MPIO-DTPO:?\s*(.*?)(?=CORREO|TEL|IDENT|$)/i);
-    const correoMatch = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const direccion = dirMatch ? dirMatch[1].trim() : "N/A";
-    const correo = correoMatch ? correoMatch[0].toLowerCase() : "N/A";
+    // RESOLUCIÓN (Número de 4 dígitos)
+    const resNum = texto.match(/-(\d{4})\s/)?.[1] || "0000";
 
     return {
-        a: sades[1] || sades[0] || "N/A", // SADE Ingreso
-        b: it,
-        c: "MANUAL",
-        d: expMatch ? expMatch[1] : "N/A",
-        e: "RESOLUCION",
-        f: "NOTIFICACIONES",
-        g: `RESOLUCION ${resMatch ? resMatch[1] : '0000'} - SADE ${sades[0] || '0000000000'}`,
-        h: extraerFecha(texto),
-        i: "N/A",
-        j: idMatch ? idMatch[1] : "N/A",
-        k: contribuyente,
-        l: `${direccion} / ${correo}`,
-        m: direccion.includes(",") ? direccion.split(",").pop().trim().toUpperCase() : "CALI",
-        n: "CORREO ELECTRONICO",
-        o: hoy,
-        p: "YOHANA ESTRADA DUQUE"
+        colA: sades[1] || sades[0] || "N/A",
+        colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
+        colG: "RESOLUCION " + resNum + " - SADE " + (sades[0] || "0000000000"),
+        colJ: idMatch ? idMatch[1] : "N/A",
+        colK: nombreMatch ? nombreMatch[1].trim() : "N/A",
+        colB: 1, colC: "", colE: "RESOLUCION", colF: "NOTIFICACIONES", 
+        colH: "2026", colI: "N/A", colL: "N/A", colM: "CALI", colN: "CORREO", colO: "2026", colP: "YOHANA"
     };
 }
 
-function extraerFecha(texto) {
-    const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
-    const f = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE(?:L)?\s+(\d{4})/i);
-    return f ? `${f[1].padStart(2,'0')}/${meses[f[2].toUpperCase()] || '01'}/${f[3]}` : "N/A";
-}
-
-function renderRow(i) {
-    const check = (v) => (v === "N/A" || v === "0000") ? `class="error"` : `class="success"`;
-    document.getElementById('tabla-body').innerHTML += `<tr>
-        <td ${check(i.a)}>${i.a}</td><td>${i.b}</td><td style="background:#fff9c4">---</td>
-        <td ${check(i.d)}>${i.d}</td><td>${i.e}</td><td>${i.f}</td>
-        <td ${check(i.g)}>${i.g}</td><td ${check(i.h)}>${i.h}</td><td>${i.i}</td>
-        <td ${check(i.j)}>${i.j}</td><td ${check(i.k)}>${i.k}</td>
-        <td ${check(i.l)}>${i.l}</td><td ${check(i.m)}>${i.m}</td>
-        <td>${i.n}</td><td>${i.o}</td><td>${i.p}</td>
-    </tr>`;
-}
-
 document.getElementById('btn-enviar').onclick = async () => {
-    try {
-        await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO A GOOGLE SHEETS!");
-    } catch (e) { alert("❌ Error"); }
+    await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
+    alert("Datos enviados con éxito.");
 };
 </script>
 </body>
