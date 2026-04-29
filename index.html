@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Extractor de Datos Reales</title>
+    <title>Sistema Gobernación — Extracción de Datos Reales</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .dato-real { color: #d93025; font-weight: bold; }
+        .dato-exito { color: #1e8e3e; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: EXTRACCIÓN DE DATOS REALES</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: CAPTURA DE DIRECCIÓN REAL</h2>
     
     <div class="drop-zone" id="drop-zone">
         <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Sade) Vacío | J (ID) Puntos | K (Nombre) Limpio | L (Dirección y Correo) CAPTURA FORZADA</p>
+        <p>A (Sade) Vacío | J (ID) Puntos | K (Nombre) Limpio | L (Dirección y Correo) CAPTURA COMPLETA</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ LEYENDO DATOS... BUSCANDO CALLES Y CORREOS... ESPERE...</div>
+    <div id="loading-msg" class="loading">⏳ LEYENDO DATOS... BUSCANDO DIRECCIÓN Y CORREO... ESPERE UN MOMENTO...</div>
 
     <div class="table-wrapper">
         <table>
@@ -68,7 +68,7 @@ async function procesarOCR(file) {
     const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
     const page = await pdf.getPage(1);
     
-    const viewport = page.getViewport({scale: 3.0}); // Aumentamos escala para máxima nitidez
+    const viewport = page.getViewport({scale: 3.5}); // Escala máxima para no perder detalles de la dirección
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.height = viewport.height;
@@ -90,7 +90,7 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalizamos el texto quitando saltos de línea y basura
+    // Normalizamos el texto: quitamos saltos de línea y unificamos espacios
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
@@ -108,23 +108,38 @@ function extraerTodoOCR(t) {
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // --- L: DIRECCIÓN Y CORREO (LÓGICA MEJORADA) ---
-    // 1. Buscamos el correo (lo más fácil de encontrar)
+    // --- L: DIRECCIÓN Y CORREO (LÓGICA REFORZADA) ---
+    // 1. Captura de Correo Independiente
     const matchEmail = texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const email = matchEmail ? matchEmail[0].toLowerCase() : "n/a";
 
-    // 2. Buscamos la dirección: Todo lo que esté después de "DTPO" o "MPIO" hasta llegar a "CORREO"
-    let direccion = "N/A";
-    const fragmentoL = texto.match(/(?:DTPO|MPIO|DTP0|MP10)[:\s–-]+(.*?)(?=CORREO|ELECTR[OÓ]NICO|TEL|$)/i);
-    if (fragmentoL) {
-        direccion = fragmentoL[1].trim();
-        // Quitamos basura que queda al inicio como ":", "-", "–"
-        direccion = direccion.replace(/^[:\s–-]+/, '').trim();
+    // 2. Captura de Dirección (Buscamos lo que sigue después de los títulos de dirección)
+    let direccionReal = "N/A";
+    // Buscamos la posición de "DIRECCION" y "CORREO" para tomar lo que hay en medio
+    const posInicio = texto.toUpperCase().indexOf("DIRECCI");
+    const posFin = texto.toUpperCase().indexOf("CORREO");
+
+    if (posInicio !== -1 && posFin !== -1 && posFin > posInicio) {
+        let bloque = texto.substring(posInicio, posFin);
+        // Quitamos los títulos internos que suelen aparecer en medio
+        direccionReal = bloque
+            .replace(/DIRECCI[OÓ]N/gi, "")
+            .replace(/MPIO/gi, "")
+            .replace(/DTPO/gi, "")
+            .replace(/DTP0/gi, "")
+            .replace(/MP10/gi, "")
+            .replace(/VALLE DEL CAUCA/gi, "VALLE DEL CAUCA") // Mantenemos el dato
+            .replace(/[–\-:;]/g, "") // Quitamos guiones y puntos sobrantes
+            .trim();
+    } else {
+        // Fallback: Si el anterior falla, buscamos un patrón de CALLE o CARRERA
+        const fallback = texto.match(/(?:CALLE|CRA|CARRERA|AV|DIAGONAL|DG|CL)\s*[\d\s#\-A-Za-z,.]+/i);
+        direccionReal = fallback ? fallback[0].trim() : "N/A";
     }
 
-    const colL = `${direccion} / ${email}`;
+    const colL = `${direccionReal} / ${email}`;
 
-    // OTROS
+    // OTROS DATOS
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
@@ -137,39 +152,4 @@ function extraerTodoOCR(t) {
         colF: "NOTIFICACIONES",
         colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
         colH: extraerFechaOCR(texto),
-        colI: texto.match(/PLACA[:\s]+([A-Z0-9]{5,7})/i)?.[1] || "N/A",
-        colJ: colJ,
-        colK: nombre,
-        colL: colL,
-        colM: "CALI- VALLE",
-        colN: "CORREO ELECTRONICO",
-        colO: hoy,
-        colP: "YOHANA ESTRADA DUQUE"
-    };
-}
-
-function extraerFechaOCR(texto) {
-    const meses = {"ENERO":"01","FEBRERO":"02","MARZO":"03","ABRIL":"04","MAYO":"05","JUNIO":"06","JULIO":"07","AGOSTO":"08","SEPTIEMBRE":"09","OCTUBRE":"10","NOVIEMBRE":"11","DICIEMBRE":"12"};
-    const f = texto.match(/(\d{1,2})\s+DE\s+([A-Z]+)\s+DE/i);
-    return f ? `${f[1]}/${meses[f[2].toUpperCase()] || '01'}/2026` : "N/A";
-}
-
-function renderRow(i) {
-    document.getElementById('resultado').innerHTML += `
-        <tr>
-            <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
-            <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
-            <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="dato-real">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
-        </tr>`;
-}
-
-document.getElementById('btn-enviar').onclick = async () => {
-    try {
-        await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡ENVIADO! Dirección y Correo capturados.");
-    } catch (e) { alert("❌ Error"); }
-};
-</script>
-</body>
-</html>
+        colI
