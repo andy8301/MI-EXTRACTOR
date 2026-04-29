@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Versión Estable Recuperada</title>
+    <title>Sistema Gobernación — Versión Estable y Cruda</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,7 +17,7 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .success-data { color: #1e8e3e; font-weight: 800; }
+        .raw-data { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -27,7 +27,7 @@
     
     <div class="drop-zone" id="drop-zone">
         <strong>📂 CLICK AQUÍ PARA SUBIR EL PDF</strong>
-        <p>Recuperado: Captura de bloque completo sin alteraciones de números.</p>
+        <p>A (Vacío) | J (Puntos) | K (Limpio) | L (Dato Crudo para Edición Manual)</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
@@ -72,7 +72,8 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        const viewport = page.getViewport({scale: 3.5}); 
+        // Escala estable de 2.5
+        const viewport = page.getViewport({scale: 2.5}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -93,55 +94,48 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Normalización: quitamos saltos de línea para leer como un solo párrafo
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
+
+    // A: SADE (Vacío)
+    const colA = "";
 
     // J: IDENTIFICACIÓN (Cédula con puntos)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
     const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: CONTRIBUYENTE (Nombre limpio)
+    // K: NOMBRE LIMPIO
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (BLOQUE TOTAL)
-    let email = "n/a";
+    // L: DIRECCIÓN Y CORREO (VERSIÓN SIMPLE Y CRUDA)
+    
+    // Correo
     let emailMatch = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || 
                      texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    if (emailMatch) {
-        email = emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
-    }
+    const email = emailMatch ? emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase() : "n/a";
 
+    // Dirección: Tomamos exactamente lo que lee después de DTPO o DIRECCION hasta el CORREO
     let direccion = "N/A";
-    let posIni = texto.toUpperCase().indexOf("DIRECCI");
-    let posFin = texto.toUpperCase().indexOf("CORREO");
-
-    if (posIni !== -1 && posFin !== -1 && posFin > posIni) {
-        let bloque = texto.substring(posIni, posFin);
-        direccion = bloque
-            .replace(/DIRECCI[OÓ]N/gi, "")
-            .replace(/MPIO/gi, "")
-            .replace(/DTPO/gi, "")
-            .replace(/DTP0/gi, "")
-            .replace(/–|—|-/g, " ") // Cambiamos guiones largos por espacios
-            .replace(/:/g, " ") 
-            .replace(/\s+/g, " ") 
-            .trim();
-        
-        // Quitar posibles letras sueltas que deja el OCR al inicio del bloque
-        if (direccion.length > 2) {
-            direccion = direccion.replace(/^[A-Z0-9]\s+/, "");
-        }
+    let dirMatch = texto.match(/(?:DTPO|MPIO|DTP0|MP10)[:\s\–\-]+(.*?)(?=CORREO|TEL[EÉ]FONO|$)/i);
+    if (!dirMatch) {
+        dirMatch = texto.match(/DIRECCI[OÓ]N[:\s\–\-]+(.*?)(?=CORREO|TEL[EÉ]FONO|$)/i);
+    }
+    
+    if (dirMatch) {
+        direccion = dirMatch[1].trim();
+        // Solo limpiamos los dos puntos o guiones que quedan sueltos al inicio
+        direccion = direccion.replace(/^[:\s\–\-]+/, '');
     }
 
+    // Otros datos...
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
     return {
-        colA: "", colB: datosFinales.length + 1, colC: "---",
+        colA: colA, colB: datosFinales.length + 1, colC: "---",
         colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
         colE: "RESOLUCION", colF: "NOTIFICACIONES",
         colG: `RESOLUCION ${resNum} - SADE ${sades[0] || '0000000000'}`,
@@ -163,14 +157,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="success-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="raw-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡LISTO! Versión estable enviada.");
+        alert("🎉 ¡LISTO! Todo enviado.");
     } catch (e) { alert("Error"); }
 };
 </script>
