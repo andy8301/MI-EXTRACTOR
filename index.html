@@ -2,126 +2,104 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA GOBERNACIÓN — MODO VISIÓN IA</title>
+    <title>SISTEMA GOBERNACIÓN — VERSIÓN FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
-        .card { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .drop-zone { border: 3px dashed #1a73e8; padding: 40px; text-align: center; color: #1a73e8; cursor: pointer; background: #e8f0fe; border-radius: 10px; }
-        .loading { display: none; text-align: center; padding: 20px; color: #f29900; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; font-size: 13px; }
+        .container { max-width: 1300px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        .drop-zone { border: 3px dashed #1a73e8; padding: 50px; text-align: center; color: #1a73e8; cursor: pointer; background: #e8f0fe; border-radius: 10px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { background: #1a73e8; color: white; padding: 10px; border: 1px solid #ddd; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
-        .btn { background: #1a73e8; color: white; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 15px; }
+        td { padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: 500; }
+        .debug-area { margin-top: 20px; padding: 15px; background: #202124; color: #00ff00; border-radius: 5px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 11px; }
+        .btn { background: #1e8e3e; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 15px; }
+        .na { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2 style="text-align:center;">🔍 EXTRACTOR CON VISIÓN ARTIFICIAL</h2>
-    <p style="text-align:center; color: #666;">Este modo "lee" el PDF como si fuera una foto. Sea paciente.</p>
+<div class="container">
+    <h2 style="text-align:center; color: #1a73e8;">EXTRACTOR GOBERNACIÓN - MODO ROBUSTO</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>PULSE AQUÍ O ARRASTRE EL PDF</strong>
+        📂 ARRASTRE EL PDF AQUÍ (PRUEBE CON EL DE CARLOS VALENCIA)
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ MI CEREBRO ESTÁ LEYENDO LA IMAGEN... ESPERE...</div>
-
-    <table id="tabla-datos">
+    <table>
         <thead>
             <tr>
-                <th>SADE INGRESO (A)</th>
-                <th>EXPEDIENTE (D)</th>
-                <th>ACTO Y SADE (G)</th>
-                <th>IDENTIFICACIÓN (J)</th>
-                <th>CONTRIBUYENTE (K)</th>
+                <th>SADE INGRESO</th>
+                <th>EXPEDIENTE</th>
+                <th>ACTO Y SADE</th>
+                <th>IDENTIFICACIÓN</th>
+                <th>CONTRIBUYENTE</th>
             </tr>
         </thead>
         <tbody id="resultado"></tbody>
     </table>
 
     <button class="btn" id="btn-enviar">🚀 ENVIAR AL EXCEL</button>
+
+    <div class="debug-area" id="debug">
+        --- CONSOLA DE LECTURA ---<br>
+        Aquí verás lo que el código "escucha" del PDF. Si esto se queda vacío, el PDF es una imagen.
+    </div>
 </div>
 
 <script>
-// URL DE TU GOOGLE SHEETS
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxS53IBTfAbkhcgoHkea9Po7M9rBVnjkmXTkVl1PpLCvHpmT4EuhxuRz_wqxITuQgLKVg/exec";
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
 let datosFinales = [];
 
-dropZone.onclick = () => fileInput.click();
-fileInput.onchange = (e) => procesarConVision(e.target.files[0]);
+document.getElementById('drop-zone').onclick = () => document.getElementById('file-input').click();
+document.getElementById('file-input').onchange = (e) => leerPDF(e.target.files[0]);
 
-async function procesarConVision(file) {
-    document.getElementById('loading-msg').style.display = "block";
+async function leerPDF(file) {
     const buffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
-    const page = await pdf.getPage(1); // Leemos la primera página
-    
-    // Convertimos el PDF en una IMAGEN (Canvas) para que el OCR lo pueda ver
-    const viewport = page.getViewport({scale: 2});
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    await page.render({canvasContext: context, viewport: viewport}).promise;
+    let textoGlobal = "";
 
-    // USAMOS TESSERACT (EL MOTOR DE VISIÓN)
-    const { data: { text } } = await Tesseract.recognize(canvas, 'spa', {
-        logger: m => console.log(m)
-    });
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        textoGlobal += content.items.map(s => s.str).join(' ') + " ";
+    }
 
-    console.log("TEXTO RECONOCIDO:", text);
-    const info = extraerDatos(text);
-    datosFinales = [info];
-    
-    document.getElementById('loading-msg').style.display = "none";
-    document.getElementById('resultado').innerHTML = `
-        <tr>
-            <td>${info.colA}</td>
-            <td>${info.colD}</td>
-            <td>${info.colG}</td>
-            <td>${info.colJ}</td>
-            <td>${info.colK}</td>
-        </tr>
-    `;
-}
+    // Limpieza de texto
+    const t = textoGlobal.replace(/\s+/g, ' ').trim();
+    document.getElementById('debug').innerText = t || "⚠️ ERROR: PDF SIN CAPA DE TEXTO (ES UNA IMAGEN)";
 
-function extraerDatos(t) {
-    const texto = t.replace(/\s+/g, ' ');
-    
-    // SADE DE INGRESO (Buscamos 10 números cerca de la palabra RADICACIÓN)
-    const sades = texto.match(/\d{10}/g) || [];
-    
-    // CONTRIBUYENTE (Buscamos después de SOLICITANTE)
-    const nombreMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,50})/i);
-    
-    // IDENTIFICACIÓN
-    const idMatch = texto.match(/(?:IDENTIFICACI|C\.C|NIT)[:\s]+([\d.]{5,15})/i);
+    if (t) {
+        const sades = t.match(/\d{10}/g) || [];
+        const ids = t.match(/\b\d{2,3}(\.\d{3}){2}\b|\b\d{7,10}\b/g) || []; // Busca cédulas con o sin puntos
+        
+        // Buscamos el nombre del contribuyente (K)
+        // Buscamos texto en mayúsculas después de palabras clave
+        const nombreMatch = t.match(/(?:SOLICITANTE|CONTRIBUYENTE)[:\s]+([A-ZÑ\s]{10,60})/i);
 
-    // RESOLUCIÓN (Número de 4 dígitos)
-    const resNum = texto.match(/-(\d{4})\s/)?.[1] || "0000";
+        const info = {
+            a: sades[1] || sades[0] || "N/A",
+            d: t.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
+            g: "RESOLUCION " + (t.match(/-(\d{4})\b/)?.[1] || "0000") + " - SADE " + (sades[0] || "0000"),
+            j: ids.find(id => id.length > 6) || "N/A",
+            k: nombreMatch ? nombreMatch[1].trim() : "N/A",
+            // Datos fijos para que no falte nada al enviar
+            b: 1, c: "", e: "RESOLUCION", f: "NOTIFICACIONES", h: "2026", i: "N/A", l: "CORREO", m: "CALI", n: "NOTIFICACION", o: "2026", p: "YOHANA ESTRADA"
+        };
 
-    return {
-        colA: sades[1] || sades[0] || "N/A",
-        colD: texto.match(/EXPEDIENTE[:\s]+([\d.-]{5,})/i)?.[1] || "N/A",
-        colG: "RESOLUCION " + resNum + " - SADE " + (sades[0] || "0000000000"),
-        colJ: idMatch ? idMatch[1] : "N/A",
-        colK: nombreMatch ? nombreMatch[1].trim() : "N/A",
-        colB: 1, colC: "", colE: "RESOLUCION", colF: "NOTIFICACIONES", 
-        colH: "2026", colI: "N/A", colL: "N/A", colM: "CALI", colN: "CORREO", colO: "2026", colP: "YOHANA"
-    };
+        datosFinales = [info];
+        document.getElementById('resultado').innerHTML = `
+            <tr>
+                <td>${info.a}</td><td>${info.d}</td><td>${info.g}</td><td>${info.j}</td><td>${info.k}</td>
+            </tr>`;
+    }
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-    alert("Datos enviados con éxito.");
+    alert("Proceso completado.");
 };
 </script>
 </body>
