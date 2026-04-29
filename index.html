@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Gobernación — Extracción de Bloque Total</title>
+    <title>Sistema Gobernación — Extractor de Direcciones Completo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -17,21 +17,21 @@
         th { background: var(--azul); color: white; padding: 10px; border: 1px solid #fff; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: left; }
         .btn { background: var(--azul); color: white; border: none; padding: 18px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; }
-        .success-data { color: #1e8e3e; font-weight: bold; }
+        .full-data { color: #d93025; font-weight: 800; background: #fff4f2; border: 1px solid #ffccc7; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 SISTEMA GOBERNACIÓN: EXTRACCIÓN TOTAL DE DIRECCIÓN</h2>
+    <h2 style="text-align:center; color: var(--azul); margin-top:0;">🔍 EXTRACTOR GOBERNACIÓN: CAPTURA DE BLOQUES CON ESPACIOS</h2>
     
     <div class="drop-zone" id="drop-zone">
-        <strong>📂 PULSE AQUÍ O ARRASTRE EL PDF</strong>
-        <p>A (Vacio) | J (Cédula Puntos) | K (Nombre Limpio) | L (CALLE 12... VALLE / CORREO)</p>
+        <strong>📂 CLIC AQUÍ PARA SUBIR EL PDF</strong>
+        <p>Ajustado: Captura direcciones largas con espacios, símbolos y guiones.</p>
         <input type="file" id="file-input" style="display:none" accept="application/pdf">
     </div>
 
-    <div id="loading-msg" class="loading">⏳ ESCANEANDO DIRECCIÓN Y CORREO... ESTO PUEDE TARDAR UN POCO...</div>
+    <div id="loading-msg" class="loading">⏳ ESCANEANDO... ANALIZANDO ESPACIOS Y SÍMBOLOS... POR FAVOR ESPERE...</div>
 
     <div class="table-wrapper">
         <table>
@@ -40,9 +40,9 @@
                     <th>SADE DE INGRESO</th><th>IT.</th><th style="background:#fbc02d; color:000">No. PLANILLA</th>
                     <th>No. EXPEDIENTE</th><th>ACTO ADMINISTRATIVO</th><th>ÁREA ADMINISTRATIVA...</th>
                     <th>No. ACTO ADMINISTRATIVO Y No. SADE</th><th>FECHA ACTO</th><th>PLACAS</th>
-                    <th style="background:#e8f0fe; color:#1a73e8;">No. DE IDENTIFICACION</th>
+                    <th style="background:#e8f0fe; color:#1a73e8;">IDENTIFICACION</th>
                     <th>CONTRIBUYENTE</th>
-                    <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO ELECTRONICO DEL CONTRIBUYENTE</th>
+                    <th style="background:#e8f0fe; color:#1a73e8;">DIRECCION Y CORREO</th>
                     <th>CIUDAD</th><th>OBSERVACIONES</th><th>FECHA PLANILLA</th><th>FUNCIONARIO</th>
                 </tr>
             </thead>
@@ -72,8 +72,8 @@ async function procesarOCR(file) {
         const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
         const page = await pdf.getPage(1);
         
-        // Escala 3.5 para máxima precisión en símbolos y números
-        const viewport = page.getViewport({scale: 3.5}); 
+        // Escala 4.0 para máxima nitidez en direcciones pequeñas
+        const viewport = page.getViewport({scale: 4.0}); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height; canvas.width = viewport.width;
@@ -94,55 +94,51 @@ function formatearCedula(num) {
 }
 
 function extraerTodoOCR(t) {
-    // Convertimos todo el texto a una tira continua para evitar cortes de línea
+    // Normalización: eliminamos saltos de línea para que todo sea un solo bloque continuo
     const texto = t.replace(/\n/g, ' ').replace(/\s+/g, ' ');
     const hoy = new Date().toLocaleDateString('es-ES');
 
-    // J: IDENTIFICACIÓN (Dato Ancla 1)
+    // J: IDENTIFICACIÓN (Puntos)
     const idMatch = texto.match(/(?:IDENTIFICACI[OÓ]N|C\.?C\.?|NIT)[:\s]+([\d.]{6,15})/i);
-    const idCruda = idMatch ? idMatch[1].trim() : "N/A";
-    const colJ = formatearCedula(idCruda);
+    const colJ = formatearCedula(idMatch ? idMatch[1].trim() : "N/A");
 
-    // K: NOMBRE LIMPIO
+    // K: NOMBRE (Limpio)
     const solMatch = texto.match(/SOLICITANTE[:\s]+([A-ZÑ\s]{10,80})/i);
     let nombre = solMatch ? solMatch[1].trim() : "N/A";
     const idxID = nombre.search(/IDENTIFICACION|IDENTIFICACI|C\.C|NIT/i);
     if (idxID !== -1) nombre = nombre.substring(0, idxID).trim();
 
-    // L: DIRECCIÓN Y CORREO (LÓGICA REFORZADA)
+    // L: DIRECCIÓN Y CORREO (LÓGICA DE CAPTURA TOTAL POR ÁREA)
     
-    // 1. Buscamos el correo (Dato Ancla 2) y arreglamos el @
+    // Primero, atrapamos el correo arreglando el @
     let email = "n/a";
-    let emailFrag = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    if (emailFrag) {
-        email = emailFrag[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
+    let emailMatch = texto.match(/[a-zA-Z0-9._%+-]+\s*[\(@QGg0]+\s*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i) || 
+                     texto.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+    if (emailMatch) {
+        email = emailMatch[0].replace(/\s+/g, '').replace(/[\(@QGg0]+/g, '@').toLowerCase();
     }
 
-    // 2. Extraer DIRECCIÓN: Todo lo que hay ENTRE la Cédula y el Correo
+    // Para la DIRECCIÓN: Buscamos todo desde "DIRECCION" hasta "CORREO"
     let direccion = "N/A";
-    if (idCruda !== "N/A" && email !== "n/a") {
-        let posCédula = texto.indexOf(idCruda);
-        let posCorreo = texto.toLowerCase().indexOf(email.substring(0, 5)); // buscamos el inicio del correo
+    const posStart = texto.toUpperCase().indexOf("DIRECCI");
+    const posEnd = texto.toUpperCase().indexOf("CORREO");
 
-        if (posCédula !== -1 && posCorreo !== -1 && posCorreo > posCédula) {
-            // El bloque entre la cédula y el correo contiene la dirección y los títulos
-            let bloque = texto.substring(posCédula + idCruda.length, posCorreo);
-            
-            // Limpiamos los títulos del formulario que estorban
-            direccion = bloque
-                .replace(/DIRECCI[OÓ]N/gi, "")
-                .replace(/MPIO/gi, "")
-                .replace(/DTPO/gi, "")
-                .replace(/DTP0/gi, "")
-                .replace(/CORREO/gi, "")
-                .replace(/ELECTR[OÓ]NICO/gi, "")
-                .replace(/[–—\-:;]/g, " ") // Quitamos guiones y puntos
-                .replace(/\s+/g, " ") // Limpiamos espacios dobles
-                .trim();
-        }
+    if (posStart !== -1 && posEnd !== -1 && posEnd > posStart) {
+        // Capturamos el bloque incluyendo espacios, #, números y guiones
+        let bloque = texto.substring(posStart, posEnd);
+        
+        // Limpiamos las etiquetas internas pero NO tocamos los datos de la calle
+        direccion = bloque
+            .replace(/DIRECCI[OÓ]N/gi, "")
+            .replace(/MPIO/gi, "")
+            .replace(/DTPO/gi, "")
+            .replace(/DTP0/gi, "")
+            .replace(/MP10/gi, "")
+            .replace(/[–—:;]/g, " ") // Quitamos guiones decorativos y puntos del formulario
+            .replace(/\s+/g, " ") // Unificamos los espacios para que no se vea desordenado
+            .trim();
     }
 
-    // --- Otros datos ---
     const sades = texto.match(/\b\d{10}\b/g) || [];
     const resNum = texto.match(/-(\d{4})\b/)?.[1] || "0000";
 
@@ -169,14 +165,14 @@ function renderRow(i) {
             <td style="background:#eee;"></td><td>${i.colB}</td><td style="text-align:center">---</td>
             <td>${i.colD}</td><td>${i.colE}</td><td>${i.colF}</td><td>${i.colG}</td>
             <td>${i.colH}</td><td>${i.colI}</td><td style="color:blue; font-weight:bold;">${i.colJ}</td>
-            <td>${i.colK}</td><td class="success-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
+            <td>${i.colK}</td><td class="full-data">${i.colL}</td><td>${i.colM}</td><td>${i.colN}</td><td>${i.colO}</td><td>${i.colP}</td>
         </tr>`;
 }
 
 document.getElementById('btn-enviar').onclick = async () => {
     try {
         await fetch(WEB_APP_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({ registros: datosFinales }) });
-        alert("🎉 ¡TODO CAPTURADO CORRECTAMENTE!");
+        alert("🎉 ¡BLOQUE DE DIRECCIÓN CAPTURADO Y ENVIADO!");
     } catch (e) { alert("Error"); }
 };
 </script>
